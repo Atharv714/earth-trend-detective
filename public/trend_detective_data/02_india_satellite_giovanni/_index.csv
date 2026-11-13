@@ -1,0 +1,24 @@
+file,giovanni_variable_id,start,end,months,units,long_name
+aod_andhra,MYD08_M3_6_1_Aerosol_Optical_Depth_Land_Ocean_Mean_Mean,2002-07,2025-12,282,1,Aerosol Optical Thickness at 0.55 microns for both Ocean (best) and Land (corrected): Mean of Daily Mean
+aod_delhi,MYD08_M3_6_1_Aerosol_Optical_Depth_Land_Ocean_Mean_Mean,2002-07,2025-12,282,1,Aerosol Optical Thickness at 0.55 microns for both Ocean (best) and Land (corrected): Mean of Daily Mean
+aod_india,MYD08_M3_6_1_Aerosol_Optical_Depth_Land_Ocean_Mean_Mean,2002-07,2025-12,282,1,Aerosol Optical Thickness at 0.55 microns for both Ocean (best) and Land (corrected): Mean of Daily Mean
+aod_punjab,MYD08_M3_6_1_Aerosol_Optical_Depth_Land_Ocean_Mean_Mean,2002-07,2025-12,282,1,Aerosol Optical Thickness at 0.55 microns for both Ocean (best) and Land (corrected): Mean of Daily Mean
+evap_andhra,GLDAS_NOAH025_M_2_1_Evap_tavg,2000-01,2025-12,312,kg m-2 s-1,Evapotranspiration
+evap_india,GLDAS_NOAH025_M_2_1_Evap_tavg,2000-01,2025-12,312,kg m-2 s-1,Evapotranspiration
+evap_punjab,GLDAS_NOAH025_M_2_1_Evap_tavg,2000-01,2025-12,312,kg m-2 s-1,Evapotranspiration
+rain_andhra,GPM_3IMERGM_07_precipitation,1998-01,2025-09,333,mm/hr,Merged satellite-gauge precipitation estimate - Final Run (recommended for general use)
+rain_india,GPM_3IMERGM_07_precipitation,1998-01,2025-09,333,mm/hr,Merged satellite-gauge precipitation estimate - Final Run (recommended for general use)
+rain_northeast,GPM_3IMERGM_07_precipitation,1998-01,2025-09,333,mm/hr,Merged satellite-gauge precipitation estimate - Final Run (recommended for general use)
+rain_punjab,GPM_3IMERGM_07_precipitation,1998-01,2025-09,333,mm/hr,Merged satellite-gauge precipitation estimate - Final Run (recommended for general use)
+rain_rajasthan,GPM_3IMERGM_07_precipitation,1998-01,2025-09,333,mm/hr,Merged satellite-gauge precipitation estimate - Final Run (recommended for general use)
+rain_western_ghats,GPM_3IMERGM_07_precipitation,1998-01,2025-09,333,mm/hr,Merged satellite-gauge precipitation estimate - Final Run (recommended for general use)
+snow_himalaya,GLDAS_NOAH025_M_2_1_SWE_inst,2000-01,2025-12,312,kg m-2,Snow depth water equivalent
+soil_andhra,GLDAS_NOAH025_M_2_1_RootMoist_inst,2000-01,2025-12,312,kg m-2,Root zone soil moisture
+soil_india,GLDAS_NOAH025_M_2_1_RootMoist_inst,2000-01,2025-12,312,kg m-2,Root zone soil moisture
+soil_punjab,GLDAS_NOAH025_M_2_1_RootMoist_inst,2000-01,2025-12,312,kg m-2,Root zone soil moisture
+soil_rajasthan,GLDAS_NOAH025_M_2_1_RootMoist_inst,2000-01,2025-12,312,kg m-2,Root zone soil moisture
+temp_andhra,M2TMNXSLV_5_12_4_T2M,1980-01,2025-12,552,K,2-meter air temperature
+temp_delhi,M2TMNXSLV_5_12_4_T2M,1980-01,2025-12,552,K,2-meter air temperature
+temp_himalaya,M2TMNXSLV_5_12_4_T2M,1980-01,2025-12,552,K,2-meter air temperature
+temp_india,M2TMNXSLV_5_12_4_T2M,1980-01,2025-12,552,K,2-meter air temperature
+temp_rajasthan,M2TMNXSLV_5_12_4_T2M,1980-01,2025-12,552,K,2-meter air temperature
