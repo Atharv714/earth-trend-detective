@@ -153,6 +153,14 @@ const live = (id: string, column: string, unit: string, what: string, n: number)
 });
 
 const regionCache = new Map<string, Promise<Region>>();
+/** Outlines of places found by name, for tools that clip a grid to the real border. */
+const shapes = new Map<string, Geo>();
+
+/** Is a point inside the outline of a place found by name? Null when there is no outline. */
+export function shapeOf(id: string): ((lon: number, lat: number) => boolean) | null {
+  const g = shapes.get(id);
+  return g && (g.type === "Polygon" || g.type === "MultiPolygon") ? (lon, lat) => inShape(lon, lat, g) : null;
+}
 
 /** Look a place up by name and build a region whose data comes live from NASA POWER. */
 export function findPlace(query: string): Promise<Region> {
@@ -169,7 +177,8 @@ export function findPlace(query: string): Promise<Region> {
 
 async function geocode(q: string): Promise<Region> {
   const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=jsonv2&limit=1&polygon_geojson=1&polygon_threshold=0.05&accept-language=en`;
-  const res = await fetch(url);
+  // Nominatim asks programs to name themselves; browsers can't set this header.
+  const res = await fetch(url, typeof window === "undefined" ? { headers: { "User-Agent": "EarthTrendDetective/0.1" } } : undefined);
   if (!res.ok) throw new Error(`The place search answered ${res.status}. Try again in a moment.`);
   const [hit] = (await res.json()) as Hit[];
   if (!hit) throw new Error(`Could not find “${q}”. Try a country, state or city name.`);
@@ -188,6 +197,7 @@ async function geocode(q: string): Promise<Region> {
   const points = samplePoints(box, [lat, lon], hit.geojson);
   const id = `find:${q.toLowerCase()}`;
   const name = hit.name || hit.display_name.split(",")[0];
+  if (hit.geojson) shapes.set(id, hit.geojson);
   const src = (column: string, unit: string, what: string): Source => ({ ...live(id, column, unit, what, points.length), points });
 
   return {

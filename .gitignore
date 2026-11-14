@@ -48,3 +48,9 @@ __pycache__/
 
 # Cesium runtime, copied from node_modules on install
 /public/cesium/
+data-raw/
+
+# Local speech-to-text (voice/server.py)
+/voice/.venv/
+/voice/models/
+/voice/cache/

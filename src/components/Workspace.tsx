@@ -4,13 +4,16 @@ import dynamic from "next/dynamic";
 import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { REGIONS, sourceFor, type Layer, type Region } from "@/lib/regions";
 import { findPlace } from "@/lib/live";
-import type { Case } from "@/lib/cases";
-import { annualize, loadMonthly, trend } from "@/lib/series";
+import { CASES, type Case } from "@/lib/cases";
+import { annualize, loadMonthly, seasonsFor, trend } from "@/lib/series";
 import { LAYERS, LAYER_INFO, trendColor } from "@/lib/layers";
 import { DEFAULT_MAP, MAP_LAYERS, describeDate, layerDate, mapLayer, type MapLayer } from "@/lib/gibs";
 import { Panel } from "./shell/Panel";
 import { Report, satYears, type Overview, type Sat } from "./report/Report";
 import type { Compare } from "./globe/CesiumGlobe";
+import { Detective, type Activity } from "./chat/Detective";
+import type { View, ViewChange } from "@/lib/agent/view";
+import type { UiPatch } from "@/lib/router/types";
 
 const Globe = dynamic(() => import("./globe/CesiumGlobe"), {
   ssr: false,
@@ -21,6 +24,8 @@ const Globe = dynamic(() => import("./globe/CesiumGlobe"), {
 const PANEL_SPACE = 376;
 const TOP_SPACE = 60;
 const GUTTER = 16;
+/** Width of the detective chat; keep in step with .chat in globals.css. */
+const CHAT_WIDTH = 380;
 
 /** Width of the report on wide screens; keep in step with .report in globals.css. */
 const reportWidth = (w: number) => Math.min(640, Math.round(w * 0.5));
@@ -67,6 +72,9 @@ export default function Workspace({ searchParams }: { searchParams: Promise<SP> 
     };
   });
   const [resetToken, setResetToken] = useState(0);
+  const [chatOpen, setChatOpen] = useState(() => sp.ask === "1");
+  /** Listening or working: the bar along the top. */
+  const [activity, setActivity] = useState<Activity>("idle");
   const [overview, setOverview] = useState<Partial<Record<Layer, Overview>>>({});
   const requested = useRef(new Set<string>());
   const searchRef = useRef<HTMLInputElement>(null);
@@ -174,16 +182,126 @@ export default function Workspace({ searchParams }: { searchParams: Promise<SP> 
     setSat((s) => ({ on: s.on, map: null, years: null }));
   }, []);
 
+  /** The detective opens what it found. */
+  const show = useCallback(
+    async (v: ViewChange) => {
+      let id = v.place;
+      if (v.query) {
+        const r = await findPlace(v.query);
+        setFound((f) => [r, ...f.filter((x) => x.id !== r.id)]);
+        id = r.id;
+      }
+      setLayer(v.layer);
+      setSelectedId(id);
+      setSeason(v.season);
+      setRange(v.range);
+      setSat((s) => ({ on: s.on, map: null, years: null }));
+    },
+    [],
+  );
+
+  const view = useMemo<View>(
+    () => ({ place: selectedId, placeName: selected?.name, layer, season, range }),
+    [selectedId, selected, layer, season, range],
+  );
+
+  const openChat = useCallback(() => setChatOpen(true), []);
+
   const reset = useCallback(() => {
     open(null);
     setResetToken((n) => n + 1);
   }, [open]);
 
+  /**
+   * Change the screen as the router asked (src/lib/router), keeping whatever it
+   * didn't mention. Says in a few words what it did, and returns the new view so
+   * a question asked in the same breath is answered about it.
+   */
+  const apply = useCallback(
+    async (p: UiPatch): Promise<{ said: string; view: View; failed?: boolean }> => {
+      if (p.chat !== undefined) setChatOpen(p.chat);
+      if (p.home) {
+        reset();
+        return { said: "Back to the whole Earth.", view: { place: null, layer, season: null, range: null } };
+      }
+      const notes: string[] = [];
+      let r = selected;
+      let nextLayer = layer;
+      let nextSeason = season;
+      let nextRange = range;
+
+      // A story, unless a place was named too: then the named place and question win.
+      const story = !p.place && p.story ? CASES.find((c) => c.id === p.story) : undefined;
+      if (story) {
+        openCase(story);
+        r = REGIONS.find((x) => x.id === story.place) ?? null;
+        nextLayer = story.layer;
+        nextSeason = story.season ?? null;
+        nextRange = null;
+      }
+
+      if (p.place) {
+        try {
+          const next = "id" in p.place ? REGIONS.find((x) => x.id === (p.place as { id: string }).id) : await findPlace(p.place.name);
+          if (next && next.id !== r?.id) {
+            if (next.group === "Searched") setFound((f) => [next, ...f.filter((x) => x.id !== next.id)]);
+            open(next.id, [next]);
+            nextSeason = null;
+            nextRange = null;
+          }
+          if (next) r = next;
+        } catch (e) {
+          return { said: e instanceof Error ? e.message : "Could not find that place.", view, failed: true };
+        }
+      }
+
+      if (p.layer) {
+        if (r && !sourceFor(r, p.layer)) notes.push(`${r.name} has no record for “${LAYER_INFO[p.layer].tab}”`);
+        else nextLayer = p.layer;
+      }
+      // The place may not have the question on screen: open the first one it has.
+      if (r && !sourceFor(r, nextLayer)) nextLayer = LAYERS.find((l) => sourceFor(r, l)) ?? nextLayer;
+      setLayer(nextLayer);
+
+      if (p.season !== undefined) {
+        if (!r) notes.push("open a place to pick a season");
+        else if (p.season === null) nextSeason = null;
+        else nextSeason = closestSeason(r, p.season);
+        setSeason(nextSeason);
+      }
+      if (p.range !== undefined) {
+        if (!r) notes.push("open a place to pick years");
+        else {
+          // A trend needs about ten years: widen a shorter stretch back from its end.
+          nextRange = p.range && p.range[1] - p.range[0] < 9 ? [p.range[1] - 9, p.range[1]] : p.range;
+          setRange(nextRange);
+        }
+      }
+      if (p.sat !== undefined) setSat((s) => ({ ...s, on: p.sat! }));
+
+      const seasonLabel = r && nextSeason ? seasonsFor(r).find((x) => x.id === nextSeason)?.label : null;
+      const parts = [
+        story?.title ?? r?.name ?? "The whole Earth",
+        LAYER_INFO[nextLayer].tab,
+        seasonLabel,
+        nextRange?.join("–"),
+        p.sat === undefined ? null : p.sat ? "satellite maps on" : "satellite maps off",
+        p.chat === undefined ? null : p.chat ? "detective open" : "detective closed",
+      ].filter(Boolean);
+      const said = `${parts.join(" · ")}.${notes.length ? ` (${notes.join("; ")}.)` : ""}`;
+      return { said, view: { place: r?.id ?? null, placeName: r?.name, layer: nextLayer, season: nextSeason, range: nextRange } };
+    },
+    [layer, season, range, selected, view, open, openCase, reset],
+  );
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const typing = (e.target as HTMLElement)?.closest("input, textarea");
       if (e.metaKey || e.ctrlKey) {
-        if (e.key.toLowerCase() === "k") {
+        if (e.key.toLowerCase() === "j") {
+          e.preventDefault();
+          setChatOpen((o) => !o);
+        } else if (e.key.toLowerCase() === "k") {
           e.preventDefault();
           reset();
           requestAnimationFrame(() => searchRef.current?.focus());
@@ -202,16 +320,17 @@ export default function Workspace({ searchParams }: { searchParams: Promise<SP> 
     return () => window.removeEventListener("keydown", onKey);
   }, [reset]);
 
+  const right = chatOpen && wide ? CHAT_WIDTH + GUTTER * 2 : 0;
   const inset = selected
     ? wide
-      ? { left: reportWidth(w) + GUTTER * 2, top: GUTTER, right: 0, bottom: 0 }
+      ? { left: reportWidth(w) + GUTTER * 2, top: GUTTER, right, bottom: 0 }
       : { left: 0, top: 0, right: 0, bottom: Math.round(h * 0.64) }
     : wide
-      ? { left: PANEL_SPACE, top: TOP_SPACE, right: 0, bottom: 0 }
+      ? { left: PANEL_SPACE, top: TOP_SPACE, right, bottom: 0 }
       : { left: 0, top: TOP_SPACE, right: 0, bottom: Math.round(h * 0.52) };
 
   return (
-    <main className="workspace" data-open={selected ? "" : undefined}>
+    <main className="workspace" data-open={selected ? "" : undefined} data-chat={chatOpen ? "" : undefined}>
       <div className="globe-layer">
         <Globe
           regions={shown}
@@ -271,9 +390,48 @@ export default function Workspace({ searchParams }: { searchParams: Promise<SP> 
         </>
       )}
 
+      <div className="busy-bar" data-mode={activity} aria-hidden>
+        <span className="busy-level" />
+        <span className="busy-run">
+          <i />
+        </span>
+      </div>
+
+      <Detective open={chatOpen} view={view} onShow={show} onApply={apply}
+        onActivity={setActivity}
+        onOpen={openChat}
+        onClose={() => setChatOpen(false)}
+      />
+      {!chatOpen && (
+        <button type="button" className="chat-launch" onClick={() => setChatOpen(true)} title="Ask the detective (⌘J)">
+          <svg viewBox="0 0 16 16" aria-hidden>
+            <circle cx="7" cy="7" r="4.25" />
+            <path d="m10.2 10.2 3.3 3.3" />
+            <path d="M5.2 7.6 6.6 6l1.2 1.4L9 5.8" />
+          </svg>
+          Ask the detective
+        </button>
+      )}
+
       <p className="credit">Imagery: NASA GIBS, Blue Marble</p>
     </main>
   );
+}
+
+/** Router seasons are month ranges; pick this place's season that shares the most months. */
+const SEASON_MONTHS: Record<string, number[]> = {
+  djf: [12, 1, 2], winter: [12, 1, 2], mam: [3, 4, 5], summer: [3, 4, 5], jja: [6, 7, 8], son: [9, 10, 11], monsoon: [6, 7, 8, 9], post: [10, 11],
+};
+function closestSeason(r: Region, id: string): string | null {
+  const want = SEASON_MONTHS[id];
+  if (!want) return null;
+  let best: string | null = null;
+  let most = 0;
+  for (const s of seasonsFor(r)) {
+    const n = s.months.filter((m) => want.includes(m)).length;
+    if (n > most) [best, most] = [s.id, n];
+  }
+  return best;
 }
 
 function Legend({ layer }: { layer: Layer }) {

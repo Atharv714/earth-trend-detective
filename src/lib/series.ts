@@ -1,6 +1,7 @@
-// Client-side loading and trend statistics.
-// A stand-in until Medhu's /api/trend lands (HANDOFF §5, §7); it uses the same
-// method: Mann-Kendall test + Sen's slope on yearly values.
+// Loading and trend statistics: Mann-Kendall test + Sen's slope on yearly
+// values (HANDOFF §5). Runs in the browser (the report) and on the server
+// (the detective's tools, src/lib/agent): the server swaps in a disk reader
+// with setTextLoader().
 
 import type { Region, Source } from "./regions";
 import { loadPower } from "./live";
@@ -40,13 +41,21 @@ export interface Trend {
 
 const text = new Map<string, Promise<string>>();
 
+let readText = (path: string): Promise<string> =>
+  fetch(`/trend_detective_data/${path}`).then((r) => {
+    if (!r.ok) throw new Error(`Could not load ${path} (${r.status})`);
+    return r.text();
+  });
+
+/** Read data files another way (the server reads them from disk). */
+export function setTextLoader(fn: (path: string) => Promise<string>) {
+  readText = fn;
+}
+
 function fetchText(path: string): Promise<string> {
   let p = text.get(path);
   if (!p) {
-    p = fetch(`/trend_detective_data/${path}`).then((r) => {
-      if (!r.ok) throw new Error(`Could not load ${path} (${r.status})`);
-      return r.text();
-    });
+    p = readText(path);
     p.catch(() => text.delete(path));
     text.set(path, p);
   }

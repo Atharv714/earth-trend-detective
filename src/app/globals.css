@@ -1653,7 +1653,6 @@ button.bar-row:hover {
   }
 }
 
-
 @media (max-width: 760px) {
   .report {
     top: auto;
@@ -1698,3 +1697,1264 @@ button.bar-row:hover {
   }
 }
 
+/* The detective: a chat on the right that investigates with NASA records */
+:root {
+  --chat-width: 380px;
+}
+
+.chat {
+  position: absolute;
+  top: var(--gutter);
+  right: var(--gutter);
+  bottom: var(--gutter);
+  z-index: 20;
+  width: var(--chat-width);
+  display: flex;
+  flex-direction: column;
+  border-radius: 18px;
+  background: rgba(20, 20, 24, 0.74);
+  -webkit-backdrop-filter: blur(30px) saturate(160%);
+  backdrop-filter: blur(30px) saturate(160%);
+  box-shadow: var(--edge), var(--lift);
+  overflow: hidden;
+  animation: chat-in 240ms var(--ease);
+}
+
+.chat[hidden] {
+  display: none;
+}
+
+@keyframes chat-in {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+}
+
+.chat-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 16px 12px 20px;
+  border-bottom: 0.5px solid var(--hairline);
+}
+
+.chat-head h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.chat-head p {
+  margin: 3px 0 0;
+  color: var(--label-3);
+  font-size: 12px;
+}
+
+.chat-close {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--fill);
+  transition: background 150ms;
+}
+
+.chat-close:hover {
+  background: var(--fill-hover);
+}
+
+.chat-close svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: var(--label-2);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+
+.chat-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 16px 20px 8px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+}
+
+.chat-empty > p {
+  margin: 0 0 14px;
+  color: var(--label-2);
+}
+
+.chat-suggest {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.chat-suggest button {
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: var(--fill);
+  text-align: left;
+  transition: background 120ms;
+}
+
+.chat-suggest button:hover {
+  background: var(--fill-hover);
+}
+
+/* The question */
+.chat-q {
+  width: fit-content;
+  max-width: 88%;
+  margin: 6px 0 14px auto;
+  padding: 8px 12px;
+  border-radius: 16px 16px 5px 16px;
+  background: color-mix(in srgb, var(--accent) 30%, rgba(255, 255, 255, 0.04));
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.chat-a {
+  margin-bottom: 22px;
+  animation: rise-in 200ms var(--ease);
+}
+
+/* Plan */
+.chat-plan {
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--fill);
+  font-size: 12.5px;
+}
+
+.chat-plan-goal {
+  margin: 0 0 6px;
+  color: var(--label-2);
+}
+
+.chat-plan ol {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--label-3);
+}
+
+.chat-plan li {
+  transition: color 200ms;
+}
+
+.chat-plan li::marker {
+  font-variant-numeric: tabular-nums;
+}
+
+.chat-plan li[data-done] {
+  color: var(--label-2);
+}
+
+.chat-plan li[data-done]::marker {
+  color: var(--accent);
+}
+
+/* The trail: one line per tool step, joined like a case file */
+.chat-trail {
+  margin-bottom: 10px;
+}
+
+.chat-trail ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chat-trail-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0 0 4px -2px;
+  padding: 2px;
+  border-radius: 6px;
+  color: var(--label-3);
+  font-size: 12.5px;
+  transition: color 150ms;
+}
+
+.chat-trail-toggle:hover {
+  color: var(--label-2);
+}
+
+.chat-trail-toggle svg {
+  width: 11px;
+  height: 11px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: rotate 150ms var(--ease);
+}
+
+.chat-trail-toggle[aria-expanded="true"] svg {
+  rotate: 90deg;
+}
+
+.chat-step {
+  position: relative;
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: 10px;
+  padding: 4px 0 8px;
+  animation: rise-in 180ms var(--ease);
+}
+
+.chat-step:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  left: 8.5px;
+  top: 25px;
+  bottom: -3px;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.chat-step-mark {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  border-radius: 50%;
+  background: var(--fill-hover);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.chat-step-mark svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: var(--green);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.chat-step[data-state="failed"] .chat-step-mark {
+  color: var(--dry);
+}
+
+.chat-step p {
+  margin: 0;
+  color: var(--label-2);
+}
+
+.chat-step[data-state="running"] p {
+  color: var(--label);
+}
+
+.chat-step-result {
+  margin-top: 1px;
+  color: var(--label-3);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.chat-step-result b {
+  color: var(--label);
+  font-weight: 600;
+}
+
+.chat-step-result .is-error {
+  color: var(--dry);
+}
+
+.chat-rank {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chat-rank li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--label-2);
+}
+
+.chat-rank li[data-flat] {
+  color: var(--label-3);
+}
+
+.chat-rank a {
+  min-width: 0;
+  overflow: hidden;
+  color: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-rank a + span {
+  flex: none;
+  color: var(--label-3);
+}
+
+/* Small yearly chart */
+.chat-charts {
+  display: grid;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.chat-chart {
+  margin: 6px 0 0;
+}
+
+.chat-chart figcaption {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 4px;
+  color: var(--label-3);
+  font-size: 12px;
+}
+
+.chat-chart figcaption span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-chart figcaption b {
+  flex: none;
+}
+
+.chat-chart-plot {
+  display: flex;
+  gap: 8px;
+}
+
+.chat-chart-plot svg {
+  flex: 1;
+  min-width: 0;
+}
+
+.chat-chart-y {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  color: var(--label-3);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.chat-chart[data-big] svg {
+  height: 72px;
+}
+
+.chat-chart[data-big] figcaption span {
+  white-space: normal;
+}
+
+.chat-chart-area {
+  fill: color-mix(in srgb, var(--tone) 14%, transparent);
+  stroke: none;
+}
+
+.chat-chart figcaption b {
+  color: var(--tone);
+  font-weight: 600;
+}
+
+.chat-chart svg {
+  display: block;
+  width: 100%;
+  height: 48px;
+  overflow: visible;
+}
+
+.chat-chart-line {
+  fill: none;
+  stroke: var(--tone);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.chat-chart-trend {
+  stroke: var(--label-2);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.chat-chart-axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 2px;
+  color: var(--label-3);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Answer */
+.chat-answer {
+  overflow-wrap: anywhere;
+}
+
+.chat-answer p,
+.chat-answer ul,
+.chat-answer ol {
+  margin: 0 0 10px;
+}
+
+.chat-answer ul,
+.chat-answer ol {
+  padding-left: 18px;
+}
+
+.chat-answer ul {
+  list-style: disc;
+}
+
+.chat-answer ol {
+  list-style: decimal;
+}
+
+.chat-answer li::marker {
+  color: var(--label-3);
+}
+
+.chat-answer h3 {
+  margin: 18px 0 6px;
+  font-size: 14.5px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.chat-answer li + li {
+  margin-top: 4px;
+}
+
+.chat-answer strong {
+  color: var(--label);
+  font-weight: 650;
+}
+
+/* A web source, as a small tag after the fact it backs */
+.chat-src {
+  color: var(--label-3);
+  font-size: 11.5px;
+  text-decoration: underline dotted;
+  text-decoration-color: color-mix(in srgb, currentColor 60%, transparent);
+  text-underline-offset: 3px;
+  white-space: nowrap;
+  transition: color 120ms;
+}
+
+.chat-src:hover {
+  color: var(--label);
+}
+
+/* Answer cards (blocks.tsx) */
+.viz {
+  --tone-c: var(--accent);
+  margin: 16px 0;
+}
+
+.chat-answer [data-tone="bad"] {
+  --tone-c: var(--warm);
+}
+
+.chat-answer [data-tone="good"] {
+  --tone-c: var(--green);
+}
+
+.chat-answer [data-tone="mixed"] {
+  --tone-c: var(--dry);
+}
+
+.chat-answer [data-tone="neutral"] {
+  --tone-c: var(--cool);
+}
+
+.viz p {
+  margin: 0;
+}
+
+.viz-title {
+  margin-bottom: 8px !important;
+  color: var(--label);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.viz-foot {
+  margin-top: 6px !important;
+  color: var(--label-3);
+  font-size: 11px;
+}
+
+.viz-loading {
+  height: 48px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, var(--fill) 0%, var(--fill-hover) 50%, var(--fill) 100%) 0 0 / 200% 100%;
+  animation: viz-shimmer 1.2s linear infinite;
+}
+
+@keyframes viz-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/* Verdict: the answer in one look */
+.viz-verdict {
+  margin-top: 4px;
+  padding: 1px 0 1px 14px;
+  border-left: 3px solid var(--tone-c);
+}
+
+.viz-verdict-title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 650;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+}
+
+.viz-verdict-text {
+  margin-top: 4px !important;
+  color: var(--label-2);
+}
+
+/* Stat tiles */
+.viz-stats {
+  display: grid;
+  grid-template-columns: repeat(min(var(--n), 2), 1fr);
+  border-top: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.viz-stat {
+  padding: 10px 12px 10px 0;
+}
+
+.viz-stat:nth-child(even) {
+  padding-left: 14px;
+  border-left: 1px solid var(--hairline);
+}
+
+.viz-stat:nth-child(n + 3) {
+  border-top: 1px solid var(--hairline);
+}
+
+/* An odd tile out takes the whole last row instead of leaving a hole. */
+.viz-stat:last-child:nth-child(odd):not(:only-child) {
+  grid-column: 1 / -1;
+}
+
+.viz-stat-unit {
+  margin-top: 1px !important;
+  color: var(--label-3);
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+.viz-stat-value {
+  color: var(--tone-c);
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 650;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.viz-stat-value span {
+  color: var(--label-3);
+  font-family: var(--font);
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.viz-stat-label {
+  margin-top: 2px !important;
+  color: var(--label-2);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+/* Charts placed in the answer */
+.viz-charts {
+  display: grid;
+  gap: 14px;
+}
+
+.viz-charts .viz-title {
+  margin-bottom: -4px !important;
+}
+
+.viz-charts .chat-chart {
+  margin: 0;
+}
+
+/* Bars */
+.viz-bars ul {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Label, bar, value */
+.viz-bars li {
+  display: grid;
+  grid-template-columns: minmax(0, 10em) 1fr auto;
+  align-items: center;
+  gap: 10px;
+  font-size: 12.5px;
+}
+
+/* Bars take the block's tone (what the numbers mean for people), not their sign. */
+.viz-bars li {
+  --bar: var(--tone-c);
+}
+
+.viz-bars li[data-tone] {
+  --bar: var(--tone-c);
+}
+
+.viz-bar-label {
+  color: var(--label-2);
+  line-height: 1.3;
+}
+
+.viz-bar-track {
+  position: relative;
+  height: 10px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.viz-bars[data-signed] .viz-bar-track::after {
+  position: absolute;
+  inset: -3px auto -3px 50%;
+  width: 1px;
+  background: var(--label-3);
+  content: "";
+}
+
+.viz-bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--x);
+  width: var(--w);
+  min-width: 2px;
+  border-radius: 5px;
+  background: var(--bar);
+  transform-origin: left;
+  animation: viz-grow 500ms var(--ease) both;
+}
+
+@keyframes viz-grow {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+.viz-bar-value {
+  min-width: 4.5em;
+  color: var(--label);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* Meter: one value against a limit */
+.viz-meter-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px !important;
+  color: var(--label-2);
+  font-size: 12.5px;
+}
+
+.viz-meter-head b {
+  color: var(--tone-c);
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.viz-meter-track {
+  position: relative;
+  height: 12px;
+  margin-bottom: 20px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.viz-meter-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 6px;
+  background: var(--tone-c);
+  transform-origin: left;
+  animation: viz-grow 600ms var(--ease) both;
+}
+
+.viz-meter-limit {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 2px;
+  background: var(--label);
+}
+
+.viz-meter-limit span {
+  position: absolute;
+  top: calc(100% + 3px);
+  left: 50%;
+  color: var(--label-3);
+  font-size: 11px;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+/* Versus: two pieces of evidence side by side */
+.viz-versus {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.viz-versus > div {
+  padding-top: 8px;
+  border-top: 2px solid var(--tone-c);
+}
+
+.viz-versus-title {
+  margin-bottom: 6px !important;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.viz-versus ul {
+  margin: 0;
+  padding-left: 14px;
+  color: var(--label-2);
+  font-size: 12.5px;
+}
+
+@media (max-width: 380px) {
+  .viz-versus {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Timeline */
+.viz-timeline ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.viz-timeline li {
+  position: relative;
+  display: grid;
+  gap: 1px;
+  padding: 0 0 12px 18px;
+  font-size: 12.5px;
+}
+
+.viz-timeline li::before {
+  position: absolute;
+  top: 6px;
+  left: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  content: "";
+}
+
+.viz-timeline li:not(:last-child)::after {
+  position: absolute;
+  top: 15px;
+  bottom: 0;
+  left: 3px;
+  width: 1px;
+  background: var(--hairline);
+  content: "";
+}
+
+.viz-timeline b {
+  color: var(--label);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.viz-timeline span {
+  color: var(--label-2);
+}
+
+/* Folded fine print */
+.viz-details {
+  border-top: 1px solid var(--hairline);
+}
+
+.viz-details summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0 0;
+  color: var(--label-2);
+  font-size: 12.5px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.viz-details summary:hover {
+  color: var(--label);
+}
+
+.viz-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.viz-details summary::before {
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  content: "";
+  transform: rotate(-45deg);
+  transition: transform 150ms var(--ease);
+}
+
+.viz-details[open] summary::before {
+  transform: rotate(45deg);
+}
+
+.viz-details > div {
+  padding: 8px 0 0 14px;
+  color: var(--label-2);
+  font-size: 12.5px;
+}
+
+/* Tappable follow-ups */
+.viz-next {
+  display: grid;
+  margin-top: 6px;
+}
+
+.viz-next button {
+  display: flex;
+  gap: 8px;
+  padding: 8px 0;
+  color: color-mix(in srgb, var(--accent) 70%, var(--label));
+  font-size: 13px;
+  text-align: left;
+  transition: color 120ms;
+}
+
+.viz-next button + button {
+  border-top: 1px solid var(--hairline);
+}
+
+.viz-next button:hover:not(:disabled) {
+  color: var(--label);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.viz-next button:disabled {
+  opacity: 0.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .viz-bar,
+  .viz-meter-fill,
+  .viz-loading {
+    animation: none;
+  }
+}
+
+.chat-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 2px 0 0;
+  color: var(--dry);
+  font-size: 12px;
+}
+
+.chat-check[data-ok] {
+  color: var(--label-3);
+}
+
+.chat-check svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin-top: 1px;
+  fill: none;
+  stroke: var(--green);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.chat-thinking {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  color: var(--label-3);
+}
+
+.spinner {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  border: 1.5px solid rgba(255, 255, 255, 0.18);
+  border-top-color: var(--label);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.chat-error {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--warm) 14%, transparent);
+}
+
+.chat-error p {
+  margin: 0 0 6px;
+}
+
+.chat-error button {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+/* Question box */
+.chat-input {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  margin: 0 12px 12px;
+  padding: 5px 5px 5px 12px;
+  border-radius: 16px;
+  background: var(--fill);
+  transition:
+    background 150ms,
+    box-shadow 150ms;
+}
+
+.chat-input:focus-within {
+  background: var(--fill-hover);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 65%, transparent);
+}
+
+.chat-input textarea {
+  flex: 1;
+  min-height: 28px;
+  max-height: 120px;
+  padding: 5px 0;
+  border: 0;
+  background: none;
+  color: var(--label);
+  font: inherit;
+  font-size: 13.5px;
+  line-height: 1.35;
+  resize: none;
+  outline: none;
+}
+
+.chat-input textarea::placeholder {
+  color: var(--label-3);
+}
+
+.chat-send {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent);
+  transition: opacity 150ms;
+}
+
+.chat-send:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.chat-send svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: #fff;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.chat-send rect {
+  fill: #fff;
+  stroke: none;
+}
+
+/* Opening it */
+.chat-launch {
+  position: absolute;
+  right: var(--gutter);
+  bottom: var(--gutter);
+  z-index: 15;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 15px 0 12px;
+  border-radius: 18px;
+  background: var(--material);
+  -webkit-backdrop-filter: blur(30px) saturate(160%);
+  backdrop-filter: blur(30px) saturate(160%);
+  box-shadow: var(--edge), var(--lift);
+  font-weight: 500;
+  transition: background 150ms;
+}
+
+.chat-launch:hover {
+  background: rgba(44, 44, 50, 0.7);
+}
+
+.chat-launch svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: var(--label);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Make room for the launcher and the chat */
+.workspace:not([data-chat]) .legend {
+  bottom: 66px;
+}
+
+.workspace[data-chat] .legend,
+.workspace[data-chat] .credit {
+  right: calc(var(--chat-width) + var(--gutter) * 2 + 8px);
+}
+
+.workspace[data-chat] .segmented.is-top {
+  right: calc(var(--chat-width) + var(--gutter) * 2);
+  max-width: calc(100% - 392px - var(--chat-width) - var(--gutter) * 3);
+}
+
+@media (max-width: 760px) {
+  .chat {
+    top: 8px;
+    right: 8px;
+    bottom: 8px;
+    left: 8px;
+    z-index: 40;
+    width: auto;
+  }
+
+  .chat-launch {
+    top: 56px;
+    right: auto;
+    bottom: auto;
+    left: 8px;
+  }
+
+  .workspace:not([data-chat]) .legend {
+    bottom: auto;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Working: a green light that runs along the top edge, wall to wall,  */
+/* while the router or the detective is busy.                          */
+
+.busy-bar {
+  position: fixed;
+  inset: 0 0 auto;
+  height: 2px;
+  z-index: 200;
+  pointer-events: none;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.35s var(--ease);
+  container-type: inline-size;
+}
+.busy-bar:not([data-mode="idle"]) {
+  opacity: 1;
+}
+/* Working: the macOS indeterminate bar. A light with a fading tail glides back and
+   forth along a faint track. Its two edges follow the same path, the tail a beat
+   behind the head, so the tail stretches at speed and shrinks to nothing at each end,
+   where it flips to trail the other way. */
+.busy-bar[data-mode="work"] {
+  background: rgb(255 255 255 / 0.07);
+}
+@property --edge-l {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+@property --edge-r {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 3;
+}
+.busy-run {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--edge-l) * 1%);
+  width: calc((var(--edge-r) - var(--edge-l)) * 1%);
+  animation-name: busy-edge-l, busy-edge-r;
+  animation-duration: 2.4s;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+.busy-run i {
+  position: absolute;
+  inset: 0;
+  border-radius: 0 2px 2px 0;
+  /* The head is solid for 4% of the screen; the light is shorter than that at the walls,
+     so it's all head when the tail swaps sides and the swap can't be seen. */
+  background: linear-gradient(90deg, rgb(48 209 88 / 0), #30d158 max(0%, calc(100% - 4cqw)));
+  animation-name: busy-turn;
+  animation-duration: 2.4s;
+  animation-timing-function: step-end;
+  animation-iteration-count: infinite;
+}
+/* Off between jobs, so each one starts from the left. */
+.busy-bar:not([data-mode="work"]) :is(.busy-run, .busy-run i) {
+  animation: none;
+  visibility: hidden;
+}
+/* Listening: a line in the middle that grows with your voice. */
+.busy-level {
+  position: absolute;
+  inset: 0;
+  background: #30d158;
+  transform: scaleX(calc(0.04 + var(--mic-level, 0) * 0.96));
+  transition: transform 90ms ease-out;
+}
+.busy-bar:not([data-mode="listen"]) .busy-level {
+  visibility: hidden;
+}
+@keyframes busy-edge-r {
+  0% {
+    --edge-r: 3;
+    animation-timing-function: cubic-bezier(0.55, 0, 0.45, 1);
+  }
+  42%,
+  58% {
+    --edge-r: 100;
+    animation-timing-function: cubic-bezier(0.55, 0, 0.45, 1);
+  }
+  100% {
+    --edge-r: 3;
+  }
+}
+@keyframes busy-edge-l {
+  0%,
+  8% {
+    --edge-l: 0;
+    animation-timing-function: cubic-bezier(0.55, 0, 0.45, 1);
+  }
+  50% {
+    --edge-l: 97;
+    animation-timing-function: cubic-bezier(0.55, 0, 0.45, 1);
+  }
+  92%,
+  100% {
+    --edge-l: 0;
+  }
+}
+@keyframes busy-turn {
+  0% {
+    transform: none;
+  }
+  50% {
+    transform: scaleX(-1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .busy-bar[data-mode="work"] .busy-level {
+    visibility: visible;
+    transform: none;
+    animation: busy-pulse 1.6s ease-in-out infinite alternate;
+  }
+  .busy-run {
+    display: none;
+  }
+  @keyframes busy-pulse {
+    from {
+      opacity: 0.3;
+    }
+  }
+}
+
+/* Speak */
+.chat-mic {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: var(--label-2);
+  transition:
+    background 150ms,
+    color 150ms;
+}
+.chat-mic:hover {
+  background: var(--fill-hover);
+  color: var(--label);
+}
+.chat-mic[aria-pressed="true"] {
+  background: #30d158;
+  color: #04210d;
+}
+.chat-mic:disabled {
+  opacity: 0.4;
+}
+.chat-mic svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}

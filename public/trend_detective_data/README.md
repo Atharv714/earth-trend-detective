@@ -10,11 +10,12 @@ Each folder has its own README with units, conversions and region boxes.
 | 04_world_giovanni | world, continents, Arctic/Antarctic, Amazon, Sahara, Wisconsin + oceans: temp, rain, aerosol, sea surface temp, sea ice, CO, methane, PM2.5 components, groundwater (Punjab/India) | monthly (groundwater daily) |
 | 05_global_sea_level | NASA-SSH global mean sea level, cm vs 1993 | ~weekly 1993-Nov 2026 |
 | 06_vegetation_land_temp_gibs | NDVI for ~33 regions (world, continents, India regions, rainforests, Sahel, China, Siberia...) | monthly 2000-03 to 2025-12 |
+| 07_grace | GRACE/GRACE-FO water stored on land (groundwater + soil + snow + surface water), every land area, 1-degree grid | monthly 2002-04 to 2026-09 |
 
 ## Themes -> files
 - Global warming: 01 T2M/T2M_MAX, 02 temp_*, 03 daily max/min, 04 temp_*
 - Rainfall variability: 01 PRECTOTCORR, 02 rain_*, 03 daily rain, 04 rain_*
-- Soil moisture & drought: 01 GWETROOT, 02 soil_*, 02 evap_*, 04 groundwater_*
+- Soil moisture & drought: 01 GWETROOT, 02 soil_*, 02 evap_*, 04 groundwater_*, 07 grace (anywhere)
 - Ocean warming: 04 sst_*
 - Glacier & ice: 02 snow_himalaya, 04 seaice_arctic / seaice_antarctic
 - Sea level rise: 05
