@@ -1,5 +1,5 @@
 # Trend Detective - NASA data pack
-Downloaded 2026-11-13/14 from NASA POWER, NASA Giovanni (Earthdata account atharv714) and NASA PO.DAAC.
+Downloaded 2026-11-13/14 from NASA POWER, NASA Giovanni and NASA PO.DAAC.
 Each folder has its own README with units, conversions and region boxes.
 
 | Folder | What | Coverage |
