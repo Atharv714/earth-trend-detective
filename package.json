@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "postinstall": "node scripts/copy-cesium.mjs",
-    "clear-dates": "python3 scripts/pick-clear-dates.py"
+    "clear-dates": "python3 scripts/pick-clear-dates.py",
+    "voice": "node scripts/voice.mjs"
   },
   "dependencies": {
     "cesium": "1.147.0",

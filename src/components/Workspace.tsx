@@ -11,6 +11,8 @@ import { DEFAULT_MAP, MAP_LAYERS, describeDate, layerDate, mapLayer, type MapLay
 import { Panel } from "./shell/Panel";
 import { Report, satYears, type Overview, type Sat } from "./report/Report";
 import type { Compare } from "./globe/CesiumGlobe";
+import { VoiceDock } from "./voice/VoiceDock";
+import type { AppControl, AppState } from "@/lib/voice/brain";
 
 const Globe = dynamic(() => import("./globe/CesiumGlobe"), {
   ssr: false,
@@ -19,6 +21,8 @@ const Globe = dynamic(() => import("./globe/CesiumGlobe"), {
 
 /** Floating UI the camera keeps the open place clear of (px). */
 const PANEL_SPACE = 376;
+/** Width the voice assistant takes on the right, plus its gutters. */
+const VOICE_SPACE = 360 + 32;
 const TOP_SPACE = 60;
 const GUTTER = 16;
 
@@ -67,6 +71,8 @@ export default function Workspace({ searchParams }: { searchParams: Promise<SP> 
     };
   });
   const [resetToken, setResetToken] = useState(0);
+  /** Computer-vision change map draped on the globe by the voice assistant. */
+  const [overlay, setOverlay] = useState<{ url: string; bbox: [number, number, number, number] } | null>(null);
   const [overview, setOverview] = useState<Partial<Record<Layer, Overview>>>({});
   const requested = useRef(new Set<string>());
   const searchRef = useRef<HTMLInputElement>(null);
@@ -150,6 +156,7 @@ export default function Workspace({ searchParams }: { searchParams: Promise<SP> 
       const r = await findPlace(query);
       setFound((f) => [r, ...f.filter((x) => x.id !== r.id)]);
       open(r.id, [r]);
+      return r;
     },
     [open],
   );
@@ -202,16 +209,41 @@ export default function Workspace({ searchParams }: { searchParams: Promise<SP> 
     return () => window.removeEventListener("keydown", onKey);
   }, [reset]);
 
+  // Voice: the assistant reads the latest view and drives it through stable handles.
+  const live = useRef({ open, find, reset, openCase });
+  useEffect(() => {
+    live.current = { open, find, reset, openCase };
+  }, [open, find, reset, openCase]);
+  const voiceControl = useMemo<AppControl>(
+    () => ({
+      open: (id) => live.current.open(id),
+      find: (q) => live.current.find(q),
+      reset: () => live.current.reset(),
+      openCase: (c) => live.current.openCase(c),
+      setLayer,
+      setRange,
+      setSeason,
+      setSat,
+      setOverlay,
+    }),
+    [],
+  );
+  const voiceState = useMemo<AppState>(
+    () => ({ regions, selected, layer, range, season, sat }),
+    [regions, selected, layer, range, season, sat],
+  );
+
+  const right = wide ? VOICE_SPACE : 0;
   const inset = selected
     ? wide
-      ? { left: reportWidth(w) + GUTTER * 2, top: GUTTER, right: 0, bottom: 0 }
+      ? { left: reportWidth(w) + GUTTER * 2, top: GUTTER, right, bottom: 0 }
       : { left: 0, top: 0, right: 0, bottom: Math.round(h * 0.64) }
     : wide
-      ? { left: PANEL_SPACE, top: TOP_SPACE, right: 0, bottom: 0 }
+      ? { left: PANEL_SPACE, top: TOP_SPACE, right, bottom: 0 }
       : { left: 0, top: TOP_SPACE, right: 0, bottom: Math.round(h * 0.52) };
 
   return (
-    <main className="workspace" data-open={selected ? "" : undefined}>
+    <main className="workspace" data-open={selected ? "" : undefined} data-voice="">
       <div className="globe-layer">
         <Globe
           regions={shown}
@@ -221,6 +253,7 @@ export default function Workspace({ searchParams }: { searchParams: Promise<SP> 
           compare={compare}
           inset={inset}
           resetToken={resetToken}
+          overlay={selected ? overlay : null}
         />
       </div>
 
@@ -248,7 +281,9 @@ export default function Workspace({ searchParams }: { searchParams: Promise<SP> 
             results={results}
             colors={colors}
             onSelect={open}
-            onFind={find}
+            onFind={async (q) => {
+              await find(q);
+            }}
             onCase={openCase}
           />
 
@@ -272,6 +307,8 @@ export default function Workspace({ searchParams }: { searchParams: Promise<SP> 
       )}
 
       <p className="credit">Imagery: NASA GIBS, Blue Marble</p>
+
+      <VoiceDock state={voiceState} control={voiceControl} />
     </main>
   );
 }

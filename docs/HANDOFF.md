@@ -437,3 +437,18 @@ Nothing was modified except: region averaging (POWER regional, average of grid c
 3. AI explanations: yes/no, which provider + key (Azure OpenAI available).
 4. Deploy target for the demo (Vercel is simplest for Next.js) and a local fallback on the laptop.
 5. ~~Remove the Earthdata username line from the data READMEs if the site will be public.~~ **Done (14 Nov):** removed from `README.md` and `02_india_satellite_giovanni/README.txt`. It is still in git history (commit `b291266`); rewrite history before making the repo public if that matters.
+
+## 14. Voice: speech-to-speech (built 14 Nov, Medhu)
+
+Full details: `docs/VOICE.md`. Summary:
+- **Run:** `npm run voice` (local service on :8765; first run installs and downloads models) + `npm run dev`. The assistant panel sits on the **right** (the space kept free for the chatbot); tap the mic, hold Space, or tick Hands-free. Typing works too.
+- **Speech-to-text:** Whisper large-v3-turbo, local and offline. Preferred engine is **whisper.cpp** (CUDA on Windows, Metal on macOS) with **flash attention** and a shortened audio window for short commands. Fallback is faster-whisper (CTranslate2, fp16). Note: CTranslate2's Windows wheels have no flash-attention kernels, which is why whisper.cpp is preferred.
+- **Text-to-speech:** Piper (`en_US-lessac-medium`), in its own process, one sentence at a time so speech starts quickly. Falls back to the browser voice if the service is down.
+- **No hallucination by design:** a grammar (`src/lib/voice/nlu.ts`) maps speech to commands. The brain (`src/lib/voice/brain.ts`) drives `Workspace` and fills answer templates with numbers from the same `src/lib/series.ts` loaders and trend test as the report. No LLM writes answers; anything unrecognised gets "I can only act on questions about the NASA data here".
+- **Computer vision** (`voice/vision.py`): pixel-level NDVI change detection on GIBS MODIS imagery. It compares 9 images per period, counts a pixel only if a per-pixel t-test says the change is consistent, and reports the area weighted by latitude and where the change is concentrated. The change map is draped on the globe (`overlay` prop on `CesiumGlobe`). Amazon 2001–03 vs 2023–25: 11.9% of the land lost greenness, centred near 8° S, 56° W (the arc of deforestation), while the region-wide NDVI trend is about flat.
+- **New data:** `07_world_soil_power/`, NASA POWER root-zone soil wetness for 20 world regions (`scripts/fetch-world-soil.mjs`), wired as `soil` sources in `src/lib/regions.ts`. The Drought question and "overlay soil moisture" now work worldwide.
+- **Frontend touch points (Atharv):**
+  - `Workspace.tsx`: renders `<VoiceDock>`, exposes `AppControl`, reserves `VOICE_SPACE` on the right in the camera inset, and `find()` now returns the region.
+  - `CesiumGlobe.tsx`: optional `overlay` prop.
+  - `globals.css`: `@import "tailwindcss" source("..")`, so Tailwind doesn't scan the multi-GB model folder (that crashed Turbopack).
+- **Checks without a browser:** `npx tsx scripts/check-nlu.mts`, `SCRIPT="Take me to the Amazon.|…" npx tsx scripts/check-voice.mts`, and `voice/selftest.py` (Piper → Whisper round trip with timings).

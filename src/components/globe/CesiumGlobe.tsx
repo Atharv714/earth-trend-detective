@@ -30,6 +30,8 @@ interface Props {
   /** Screen space covered by floating UI, so the camera frames the area in what is left. */
   inset: { left: number; top: number; right: number; bottom: number };
   resetToken: number;
+  /** A picture draped over a box on the globe (the voice assistant's computer-vision change map). */
+  overlay?: { url: string; bbox: [number, number, number, number] } | null;
 }
 
 interface Scene {
@@ -46,7 +48,7 @@ const IDLE_SECONDS = 3;
 const SPIN_DEG_PER_S = 3;
 
 export default function CesiumGlobe(props: Props) {
-  const { regions, colors, selected, onSelect, compare, inset, resetToken } = props;
+  const { regions, colors, selected, onSelect, compare, inset, resetToken, overlay } = props;
   const hostRef = useRef<HTMLDivElement>(null);
   const [scene, setScene] = useState<Scene | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -240,6 +242,29 @@ export default function CesiumGlobe(props: Props) {
       widget.scene.requestRender();
     };
   }, [scene, selected, source, beforeT, afterT]);
+
+  // Change map from the computer-vision comparison, on top of everything.
+  const overlayUrl = overlay?.url;
+  const overlayBox = overlay?.bbox.join(",");
+  useEffect(() => {
+    if (!scene || !overlayUrl || !overlayBox) return;
+    const { C, widget } = scene;
+    const layers = widget.scene.imageryLayers;
+    let layer: ImageryLayer | null = null;
+    let gone = false;
+    const [w, s0, e, n] = overlayBox.split(",").map(Number);
+    C.SingleTileImageryProvider.fromUrl(overlayUrl, { rectangle: C.Rectangle.fromDegrees(w, s0, e, n) }).then((p) => {
+      if (gone) return;
+      layer = layers.addImageryProvider(p);
+      layer.alpha = 0.9;
+      widget.scene.requestRender();
+    });
+    return () => {
+      gone = true;
+      if (layer) layers.remove(layer, true);
+      widget.scene.requestRender();
+    };
+  }, [scene, overlayUrl, overlayBox]);
 
   // Idle spin: on the home view, after a few quiet seconds, turn the Earth
   // slowly west to east. Any touch, drag, scroll or key stops it at once.

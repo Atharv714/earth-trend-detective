@@ -48,3 +48,9 @@ __pycache__/
 
 # Cesium runtime, copied from node_modules on install
 /public/cesium/
+
+# Voice service: virtualenv, downloaded models, image/result cache
+/voice/.venv/
+/voice/models/
+/voice/cache/
+__pycache__/
