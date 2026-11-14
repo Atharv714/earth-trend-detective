@@ -51,6 +51,20 @@ after every answer. Tap the mic while it talks to interrupt.
 | "What is NDVI / a p-value / Sen's slope / Mann-Kendall?" | Fixed, checked definitions |
 | "Play the Arctic story" · "Hide the change map" · "Go home" · "Repeat" · "Stop" · "Help" | |
 
+## Presenting: headset button + headset and HDMI speakers together
+
+* **Headset button (CMF Neckband Pro knob, AirPods, any Bluetooth headset):** click anywhere on the page once, then a
+  press of the headset button starts listening, and the next press ends it (or interrupts the answer). It works while
+  the tab or browser isn't focused. How: headset buttons reach web pages only through the browser's media controls, so the
+  page keeps an inaudible audio loop playing to own the media session, and listens for play/pause, toggle-microphone
+  and hang-up (`src/lib/voice/headset.ts`). If another app (Spotify, YouTube in another tab) starts playing, it takes
+  the button over; pause it, then click the page once.
+* **Two outputs at once:** ⚙ in the voice panel. By default it ticks the **HDMI/display speakers and the headset** and
+  uses the **headset mic**; every answer plays on all ticked outputs together (one Web Audio context per device,
+  `setSinkId`, Chrome/Edge only). "Test speakers" checks it. Choices are remembered in this browser; "Auto-pick" resets them.
+* Bluetooth note: while its mic is open, a headset runs in hands-free mode, and Windows lists it twice ("Headphones" and
+  "Headset … Hands-Free"). Auto-pick uses the hands-free one, the live one. The Bluetooth copy lags the HDMI one by about 0.2 s.
+
 ## Why it doesn't hallucinate
 
 * **No LLM in the loop.** Commands are recognised by a grammar; answers are templates filled with computed numbers.

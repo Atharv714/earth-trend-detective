@@ -375,3 +375,80 @@
     right: calc(360px + 2 * var(--gutter));
   }
 }
+
+/* Audio settings */
+.vd-actions {
+  display: flex;
+  gap: 6px;
+}
+.vd-x.is-on {
+  background: var(--accent);
+  color: #fff;
+}
+.vd-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 0.5px solid var(--hairline);
+  background: rgba(0, 0, 0, 0.2);
+  max-height: 50%;
+  overflow-y: auto;
+}
+.vd-hs {
+  margin: 0;
+  color: var(--label-2);
+}
+.vd-hs.is-ok::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: #30d158;
+  vertical-align: 1px;
+}
+.vd-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: var(--label-2);
+}
+.vd-field legend {
+  padding: 0;
+  margin-bottom: 4px;
+}
+.vd-field select {
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 0;
+  background: var(--fill);
+  box-shadow: var(--edge);
+  color: var(--label);
+  font: inherit;
+}
+.vd-check {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--label);
+  cursor: pointer;
+}
+.vd-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.vd-btn {
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--fill);
+  box-shadow: var(--edge);
+}
+.vd-btn:hover {
+  background: var(--fill-hover);
+}

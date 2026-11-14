@@ -4,7 +4,18 @@
 // and answers out loud. Hands-free mode keeps listening after each answer.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Brain, toSpeech, type AppControl, type AppState, type Card, type Reply } from "@/lib/voice/brain";
-import { Mic, Speaker, health, transcribe } from "@/lib/voice/audio";
+import {
+  Mic,
+  Speaker,
+  canPickOutput,
+  health,
+  listDevices,
+  preferredInput,
+  preferredOutputs,
+  transcribe,
+  type AudioDevice,
+} from "@/lib/voice/audio";
+import { HeadsetButton } from "@/lib/voice/headset";
 import { VoiceCard } from "./cards";
 import "./voice.css";
 
@@ -26,6 +37,22 @@ interface Props {
 
 let turnId = 0;
 
+const PREFS = "etd.voice.devices";
+type Prefs = { input: string | null; outputs: string[]; manual: boolean };
+function loadPrefs(): Prefs | null {
+  try {
+    const v = localStorage.getItem(PREFS);
+    return v ? (JSON.parse(v) as Prefs) : null;
+  } catch {
+    return null;
+  }
+}
+function savePrefs(p: Prefs) {
+  try {
+    localStorage.setItem(PREFS, JSON.stringify(p));
+  } catch {}
+}
+
 export function VoiceDock({ state, control }: Props) {
   const stateRef = useRef(state);
   useEffect(() => {
@@ -39,6 +66,11 @@ export function VoiceDock({ state, control }: Props) {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [svc, setSvc] = useState<{ ok: boolean; text: string }>({ ok: false, text: "Connecting to the voice service…" });
   const [typed, setTyped] = useState("");
+  const [showSettings, setShowSettings] = useState(false);
+  const [devices, setDevices] = useState<{ inputs: AudioDevice[]; outputs: AudioDevice[] }>({ inputs: [], outputs: [] });
+  const [inputId, setInputId] = useState<string | null>(null);
+  const [outputIds, setOutputIds] = useState<string[]>([]);
+  const [armed, setArmed] = useState(false);
 
   const mic = useRef<Mic | null>(null);
   const speaker = useRef<Speaker | null>(null);
@@ -46,6 +78,9 @@ export function VoiceDock({ state, control }: Props) {
   const handsFreeRef = useRef(false);
   const busy = useRef(false);
   const logRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<string | null>(null);
+  const headset = useRef<HeadsetButton | null>(null);
+  const tapRef = useRef<() => void>(() => {});
 
   const push = useCallback((t: Omit<Turn, "id">) => {
     const id = ++turnId;
@@ -139,16 +174,16 @@ export function VoiceDock({ state, control }: Props) {
       speaker.current?.stop(); // barge-in
       speaker.current?.unlock();
       try {
-        if (!mic.current) {
-          mic.current = new Mic();
-          await mic.current.open();
-        }
+        mic.current ??= new Mic();
+        await mic.current.open(inputRef.current);
         setStatus("listening");
+        headset.current?.setMicActive(true);
         const r = mic.current.record({ waitForSpeech: opts.waitForSpeech, onLevel: setLevel, maxMs: 15000 });
         rec.current = r;
         const pcm = await r.done;
         rec.current = null;
         setLevel(0);
+        headset.current?.setMicActive(false);
         if (!pcm || pcm.length < 3200) {
           setStatus("idle");
           return;
@@ -186,6 +221,94 @@ export function VoiceDock({ state, control }: Props) {
     if (status === "speaking") speaker.current?.stop();
     void listen({ waitForSpeech: false });
   }, [listen, status]);
+  useEffect(() => {
+    tapRef.current = tap;
+  }, [tap]);
+
+  /* ---------------- devices: which mic, which speakers ---------------- */
+
+  const refreshDevices = useCallback(async () => {
+    const d = await listDevices();
+    setDevices(d);
+    const prefs = loadPrefs();
+    const has = (id: string | null, list: AudioDevice[]) => !id || list.some((x) => x.id === id);
+    let input = prefs?.input ?? null;
+    let outputs = prefs?.outputs ?? [];
+    // Manual choices stick while those devices are connected; otherwise pick headset + HDMI automatically.
+    if (!prefs?.manual || !has(input, d.inputs)) input = preferredInput(d.inputs);
+    if (!prefs?.manual || !outputs.every((o) => has(o, d.outputs))) outputs = preferredOutputs(d.outputs);
+    inputRef.current = input;
+    setInputId(input);
+    setOutputIds(outputs);
+    speaker.current?.setSinks(canPickOutput() ? outputs : []);
+  }, []);
+
+  useEffect(() => {
+    const md = typeof navigator !== "undefined" ? navigator.mediaDevices : undefined;
+    const sync = () => void refreshDevices();
+    sync();
+    md?.addEventListener?.("devicechange", sync);
+    return () => md?.removeEventListener?.("devicechange", sync);
+  }, [refreshDevices]);
+
+  const chooseInput = (id: string | null) => {
+    inputRef.current = id;
+    setInputId(id);
+    savePrefs({ input: id, outputs: outputIds, manual: true });
+  };
+  const toggleOutput = (id: string) => {
+    const next = outputIds.includes(id) ? outputIds.filter((x) => x !== id) : [...outputIds, id];
+    setOutputIds(next);
+    speaker.current?.setSinks(next);
+    savePrefs({ input: inputRef.current, outputs: next, manual: true });
+  };
+  const resetDevices = () => {
+    try {
+      localStorage.removeItem(PREFS);
+    } catch {}
+    void refreshDevices();
+  };
+
+  /* ---------------- headset button ---------------- */
+
+  useEffect(() => {
+    const hs = new HeadsetButton();
+    hs.onPress = () => tapRef.current();
+    hs.onState = setArmed;
+    headset.current = hs;
+    // Browsers only allow audio after a user gesture: arm on the first click or key anywhere on the page.
+    const arm = () => {
+      speaker.current?.unlock();
+      void hs.arm().then(() => {
+        if (hs.armed) {
+          window.removeEventListener("pointerdown", arm, true);
+          window.removeEventListener("keydown", arm, true);
+        }
+      });
+      // Device names stay hidden until the page has had mic permission once.
+      void navigator.mediaDevices
+        ?.getUserMedia({ audio: true })
+        .then((st) => {
+          st.getTracks().forEach((t) => t.stop());
+          return refreshDevices();
+        })
+        .catch(() => {});
+    };
+    window.addEventListener("pointerdown", arm, true);
+    window.addEventListener("keydown", arm, true);
+    const media = (e: KeyboardEvent) => void hs.key(e);
+    window.addEventListener("keydown", media);
+    return () => {
+      window.removeEventListener("pointerdown", arm, true);
+      window.removeEventListener("keydown", arm, true);
+      window.removeEventListener("keydown", media);
+    };
+  }, [refreshDevices]);
+
+  const testOutputs = () => {
+    speaker.current?.unlock();
+    void speaker.current?.speak("Testing. You should hear me on every speaker that is ticked.");
+  };
 
   const toggleHandsFree = useCallback(() => {
     const on = !handsFreeRef.current;
@@ -241,10 +364,65 @@ export function VoiceDock({ state, control }: Props) {
           <strong>Trend Detective</strong>
           <span className={`vd-svc ${svc.ok ? "is-ok" : ""}`}>{svc.text}</span>
         </div>
-        <button type="button" className="vd-x" onClick={() => setOpen(false)} aria-label="Minimise">
-          –
-        </button>
+        <div className="vd-actions">
+          <button
+            type="button"
+            className={`vd-x ${showSettings ? "is-on" : ""}`}
+            onClick={() => setShowSettings((v) => !v)}
+            aria-label="Audio settings"
+            title="Microphone, speakers and headset button"
+          >
+            ⚙
+          </button>
+          <button type="button" className="vd-x" onClick={() => setOpen(false)} aria-label="Minimise">
+            –
+          </button>
+        </div>
       </header>
+
+      {showSettings && (
+        <section className="vd-settings" aria-label="Audio settings">
+          <p className={`vd-hs ${armed ? "is-ok" : ""}`}>
+            {armed
+              ? "Headset button ready: press it anywhere to talk, press again to stop."
+              : "Click anywhere on the page once to enable the headset button."}
+          </p>
+          <label className="vd-field">
+            <span>Microphone</span>
+            <select value={inputId ?? ""} onChange={(e) => chooseInput(e.target.value || null)}>
+              <option value="">System default</option>
+              {devices.inputs
+                .filter((d) => d.id !== "default")
+                .map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.label}
+                  </option>
+                ))}
+            </select>
+          </label>
+          <fieldset className="vd-field">
+            <legend>Speak through (all ticked play together)</legend>
+            {!canPickOutput() && <p className="vc-note">This browser can only use the system default. Use Chrome or Edge.</p>}
+            {canPickOutput() &&
+              devices.outputs
+                .filter((d) => d.id !== "default")
+                .map((d) => (
+                  <label key={d.id} className="vd-check">
+                    <input type="checkbox" checked={outputIds.includes(d.id)} onChange={() => toggleOutput(d.id)} /> {d.label}
+                  </label>
+                ))}
+            {canPickOutput() && outputIds.length === 0 && <p className="vc-note">Nothing ticked: using the system default.</p>}
+          </fieldset>
+          <div className="vd-row">
+            <button type="button" className="vd-btn" onClick={testOutputs}>
+              Test speakers
+            </button>
+            <button type="button" className="vd-btn" onClick={resetDevices}>
+              Auto-pick (headset + HDMI)
+            </button>
+          </div>
+        </section>
+      )}
 
       <div className="vd-log" ref={logRef} aria-live="polite">
         {turns.length === 0 && (

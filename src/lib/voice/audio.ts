@@ -42,10 +42,20 @@ export class Mic {
   private node: AudioWorkletNode | null = null;
   private src: MediaStreamAudioSourceNode | null = null;
 
-  async open() {
-    if (this.ctx) return;
+  deviceId: string | null = null;
+
+  async open(deviceId: string | null = null) {
+    if (this.ctx && deviceId === this.deviceId) return;
+    if (this.ctx) this.close();
+    this.deviceId = deviceId;
     this.stream = await navigator.mediaDevices.getUserMedia({
-      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      audio: {
+        ...(deviceId ? { deviceId: { exact: deviceId } } : {}),
+        channelCount: 1,
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
     });
     this.ctx = new AudioContext();
     const url = URL.createObjectURL(new Blob([WORKLET], { type: "application/javascript" }));
@@ -202,32 +212,55 @@ export function sentences(text: string): string[] {
 }
 
 export class Speaker {
-  private ctx: AudioContext | null = null;
-  private current: AudioBufferSourceNode | null = null;
+  /** One context per output device, so the same voice plays on all of them at once. */
+  private ctxs = new Map<string, AudioContext>();
+  private current: AudioBufferSourceNode[] = [];
   private gen = 0;
+  /** Output device ids; empty = the system default. */
+  private sinks: string[] = [];
   /** Use the browser's built-in voice when the local service is down. */
   fallback = false;
   onState?: (speaking: boolean) => void;
   /** ms from speak() to the first sound. */
   onFirstAudio?: (ms: number, engine: "piper" | "browser") => void;
 
-  private audio() {
-    if (!this.ctx) this.ctx = new AudioContext();
-    if (this.ctx.state === "suspended") void this.ctx.resume();
-    return this.ctx;
+  setSinks(ids: string[]) {
+    const want = ids.length ? ids : [""];
+    for (const [id, ctx] of this.ctxs) {
+      if (!want.includes(id)) {
+        void ctx.close();
+        this.ctxs.delete(id);
+      }
+    }
+    this.sinks = ids;
+  }
+
+  private contexts(): AudioContext[] {
+    const want = this.sinks.length ? this.sinks : [""];
+    return want.map((id) => {
+      let ctx = this.ctxs.get(id);
+      if (!ctx) {
+        ctx = id ? makeContext(id) : new AudioContext();
+        this.ctxs.set(id, ctx);
+      }
+      if (ctx.state === "suspended") void ctx.resume();
+      return ctx;
+    });
   }
 
   /** Call from a user gesture once, so autoplay rules let us speak later. */
   unlock() {
-    this.audio();
+    this.contexts();
   }
 
   stop() {
     this.gen++;
-    try {
-      this.current?.stop();
-    } catch {}
-    this.current = null;
+    for (const src of this.current) {
+      try {
+        src.stop();
+      } catch {}
+    }
+    this.current = [];
     if (typeof speechSynthesis !== "undefined") speechSynthesis.cancel();
     this.onState?.(false);
   }
@@ -241,15 +274,15 @@ export class Speaker {
     this.onState?.(true);
     if (this.fallback) return this.browser(parts, gen, t0);
 
-    const ctx = this.audio();
+    const ctxs = this.contexts();
     // Start synthesising every sentence now; play them in order as they arrive.
-    const jobs = parts.map((p) => synth(ctx, p));
+    const jobs = parts.map((p) => synth(ctxs[0], p));
     try {
       for (let i = 0; i < jobs.length; i++) {
         const buf = await jobs[i];
         if (gen !== this.gen) return;
         if (i === 0) this.onFirstAudio?.(Math.round(performance.now() - t0), "piper");
-        await this.play(ctx, buf, gen);
+        await this.play(ctxs, buf, gen);
         if (gen !== this.gen) return;
       }
     } catch {
@@ -260,15 +293,23 @@ export class Speaker {
     if (gen === this.gen) this.onState?.(false);
   }
 
-  private play(ctx: AudioContext, buf: AudioBuffer, gen: number) {
-    return new Promise<void>((resolve) => {
-      if (gen !== this.gen) return resolve();
-      const src = ctx.createBufferSource();
-      src.buffer = buf;
-      src.connect(ctx.destination);
-      src.onended = () => resolve();
-      this.current = src;
-      src.start();
+  /** The same buffer on every output, started together; resolves when the longest finishes. */
+  private play(ctxs: AudioContext[], buf: AudioBuffer, gen: number) {
+    if (gen !== this.gen) return Promise.resolve();
+    return Promise.all(
+      ctxs.map(
+        (ctx) =>
+          new Promise<void>((resolve) => {
+            const src = ctx.createBufferSource();
+            src.buffer = buf;
+            src.connect(ctx.destination);
+            src.onended = () => resolve();
+            this.current.push(src);
+            src.start();
+          }),
+      ),
+    ).then(() => {
+      this.current = [];
     });
   }
 
@@ -301,3 +342,59 @@ async function synth(ctx: AudioContext, text: string): Promise<AudioBuffer> {
   if (!res.ok) throw new Error(`TTS ${res.status}`);
   return ctx.decodeAudioData(await res.arrayBuffer());
 }
+
+function makeContext(sinkId: string): AudioContext {
+  try {
+    // Chrome/Edge 110+: pick the output device when creating the context.
+    return new AudioContext({ sinkId } as AudioContextOptions);
+  } catch {
+    const ctx = new AudioContext();
+    const c = ctx as AudioContext & { setSinkId?: (id: string) => Promise<void> };
+    void c.setSinkId?.(sinkId).catch(() => {});
+    return ctx;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Devices                                                             */
+
+export interface AudioDevice {
+  id: string;
+  label: string;
+}
+
+const HEADSET = /hands-?free|headset|headphone|neckband|cmf|nothing|buds|airpods|bluetooth|\bbt\b/i;
+const BIG_SPEAKER = /hdmi|display ?audio|displayport|monitor|\btv\b|nvidia high definition|intel\(r\) display/i;
+
+export async function listDevices(): Promise<{ inputs: AudioDevice[]; outputs: AudioDevice[] }> {
+  if (!navigator.mediaDevices?.enumerateDevices) return { inputs: [], outputs: [] };
+  const all = await navigator.mediaDevices.enumerateDevices();
+  const pick = (kind: MediaDeviceKind) =>
+    all
+      .filter((d) => d.kind === kind && d.deviceId !== "communications")
+      .map((d) => ({ id: d.deviceId, label: d.label || (d.deviceId === "default" ? "System default" : "Unnamed device") }));
+  return { inputs: pick("audioinput"), outputs: pick("audiooutput") };
+}
+
+/** Prefer a headset / neckband mic when one is connected. */
+export function preferredInput(inputs: AudioDevice[]): string | null {
+  return inputs.find((d) => d.id !== "default" && HEADSET.test(d.label))?.id ?? null;
+}
+
+/**
+ * Presentation default: the headset AND the HDMI/display speakers together when both are present.
+ * Never the "default" alias next to a real device (that would play twice on the same one).
+ */
+export function preferredOutputs(outputs: AudioDevice[]): string[] {
+  const real = outputs.filter((d) => d.id !== "default");
+  // A Bluetooth headset shows up twice on Windows: "Headphones" (stereo, A2DP) and "Headset … Hands-Free"
+  // (used while its mic is open). We keep the mic open, so the hands-free one is the live one; pick only one.
+  const headsets = real.filter((d) => HEADSET.test(d.label) && !BIG_SPEAKER.test(d.label));
+  const headset = headsets.find((d) => /hands-?free/i.test(d.label)) ?? headsets[0];
+  const big = real.filter((d) => BIG_SPEAKER.test(d.label));
+  const chosen = [...big, ...(headset ? [headset] : [])];
+  return [...new Set(chosen.map((d) => d.id))];
+}
+
+/** Whether this browser can send audio to a chosen device (Chrome/Edge yes, Safari/Firefox no). */
+export const canPickOutput = () => typeof AudioContext !== "undefined" && "setSinkId" in AudioContext.prototype;
