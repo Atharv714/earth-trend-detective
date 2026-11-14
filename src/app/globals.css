@@ -272,6 +272,77 @@ button {
   color: var(--label-3);
 }
 
+/* Live search: the row under the search field */
+.row.find {
+  margin-top: 4px;
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.row.find svg {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.3;
+}
+
+.row.find:disabled {
+  color: var(--label-2);
+  cursor: progress;
+}
+
+.row.find:disabled svg {
+  animation: spin 1.6s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    rotate: 360deg;
+  }
+}
+
+/* One-click stories */
+.cases {
+  margin-bottom: 4px;
+}
+
+.case {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: calc(100% + 16px);
+  margin: 0 -8px;
+  padding: 7px 8px;
+  border-radius: 8px;
+  text-align: left;
+  transition: background 120ms;
+}
+
+.case:hover {
+  background: var(--fill);
+}
+
+.case:focus-visible {
+  outline-offset: -2px;
+}
+
+.case i {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  margin-top: 7px;
+  border-radius: 50%;
+}
+
+.case small {
+  display: block;
+  margin-top: 1px;
+  color: var(--label-3);
+  font-size: 12.5px;
+}
+
 /* Detail */
 .back {
   align-self: flex-start;
@@ -409,12 +480,23 @@ button {
 }
 
 /* Segmented control */
+/* Centred in the space right of the place list; scrolls sideways if the window is narrow. */
 .segmented.is-top {
   position: absolute;
   top: var(--gutter);
-  left: 50%;
-  translate: -50% 0;
+  left: 392px;
+  right: var(--gutter);
+  width: max-content;
+  max-width: calc(100% - 392px - var(--gutter));
+  margin: 0 auto;
+  overflow-x: auto;
+  scrollbar-width: none;
   z-index: 10;
+}
+
+.segmented button {
+  flex: none;
+  white-space: nowrap;
 }
 
 .segmented {
@@ -605,9 +687,12 @@ button {
 }
 
 .report-tabs {
-  grid-column: 2;
-  grid-row: 2 / span 2;
-  align-self: center;
+  grid-column: 1 / -1;
+  justify-self: start;
+  max-width: 100%;
+  margin-top: 14px;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 
 .segmented button:disabled {
@@ -1547,6 +1632,9 @@ button.bar-row:hover {
 
   .segmented.is-top {
     top: 12px;
+    left: 8px;
+    right: 8px;
+    max-width: calc(100% - 16px);
   }
 
   .segmented button {

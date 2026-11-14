@@ -1,7 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { CesiumWidget, ImageryLayer, PointPrimitiveCollection, PolylineCollection, Rectangle } from "cesium";
+import type {
+  Cartesian3,
+  CesiumWidget,
+  ImageryLayer,
+  PerspectiveFrustum,
+  PointPrimitiveCollection,
+  PolylineCollection,
+  Rectangle,
+} from "cesium";
 import { loadCesium, type Cesium } from "@/lib/cesium";
 import { BASE, BORDERS, regionBox, tileUrl, type TileSource } from "@/lib/gibs";
 import type { Region } from "@/lib/regions";
@@ -32,6 +40,10 @@ interface Scene {
 }
 
 const HOME = { lon: 62, lat: 18, height: 2.1e7 };
+/** Quiet seconds on the home view before the Earth starts turning. */
+const IDLE_SECONDS = 3;
+/** One full turn in about two minutes. */
+const SPIN_DEG_PER_S = 3;
 
 export default function CesiumGlobe(props: Props) {
   const { regions, colors, selected, onSelect, compare, inset, resetToken } = props;
@@ -41,9 +53,11 @@ export default function CesiumGlobe(props: Props) {
   const [hover, setHover] = useState<{ name: string; x: number; y: number } | null>(null);
 
   const onSelectRef = useRef(onSelect);
+  const regionsRef = useRef(regions);
   useEffect(() => {
     onSelectRef.current = onSelect;
-  }, [onSelect]);
+    regionsRef.current = regions;
+  }, [onSelect, regions]);
 
   // Start Cesium once.
   useEffect(() => {
@@ -63,8 +77,19 @@ export default function CesiumGlobe(props: Props) {
           useBrowserRecommendedResolution: false,
           msaaSamples: 1,
         });
-        widget.resolutionScale = Math.min(window.devicePixelRatio, 1.5) / window.devicePixelRatio;
         const s = widget.scene;
+        // The graphics chip, not JavaScript, was the limit: 1.5x density stuttered
+        // while moving (13 slow frames in 3 s) and 1x was a steady 60 fps. So draw
+        // at 1x while the camera moves and go back to sharp 1.5x once it stops.
+        const dpr = window.devicePixelRatio;
+        const sharp = Math.min(dpr, 1.5) / dpr;
+        const fast = 1 / dpr;
+        widget.resolutionScale = sharp;
+        widget.camera.moveStart.addEventListener(() => (widget!.resolutionScale = fast));
+        widget.camera.moveEnd.addEventListener(() => {
+          widget!.resolutionScale = sharp;
+          s.requestRender();
+        });
         s.globe.baseColor = C.Color.BLACK;
         s.globe.tileCacheSize = 400;
         s.backgroundColor = C.Color.fromCssColorString("#000005");
@@ -86,12 +111,29 @@ export default function CesiumGlobe(props: Props) {
         widget.camera.setView({ destination: C.Cartesian3.fromDegrees(HOME.lon, HOME.lat, HOME.height) });
 
         const handler = new C.ScreenSpaceEventHandler(s.canvas);
+        // Find the dot under the mouse with plain maths. scene.pick() redraws
+        // the whole globe off-screen and cost ~85 ms per mouse move.
+        const screen = new C.Cartesian2();
+        const toEye = new C.Cartesian3();
         const pickId = (pos: { x: number; y: number }) => {
-          const hit = s.pick(new C.Cartesian2(pos.x, pos.y));
-          return hit && typeof hit.id === "string" ? (hit.id as string) : null;
+          const eye = widget!.camera.positionWC;
+          let best: string | null = null;
+          let bestD = Infinity;
+          for (let i = 0; i < points.length; i++) {
+            const p = points.get(i);
+            // Skip dots on the far side of the Earth.
+            C.Cartesian3.subtract(eye, p.position, toEye);
+            if (C.Cartesian3.dot(toEye, p.position) <= 0) continue;
+            if (!C.SceneTransforms.worldToWindowCoordinates(s, p.position, screen)) continue;
+            const d = Math.hypot(screen.x - pos.x, screen.y - pos.y);
+            if (d <= p.pixelSize / 2 + 5 && d < bestD) {
+              bestD = d;
+              best = p.id as string;
+            }
+          }
+          return best;
         };
-        // Picking draws an extra frame, so do it at most once per frame, and
-        // never while dragging the globe or when no dots are shown.
+        // At most once per frame, and never while dragging the globe or when no dots are shown.
         let queued: { x: number; y: number } | null = null;
         let lastId: string | null = null;
         let dragging = false;
@@ -113,7 +155,7 @@ export default function CesiumGlobe(props: Props) {
             const pos = queued!;
             queued = null;
             const id = pickId(pos);
-            const r = id ? regions.find((x) => x.id === id) : null;
+            const r = id ? regionsRef.current.find((x) => x.id === id) : null;
             s.canvas.style.cursor = r ? "pointer" : "";
             if (id !== lastId || r) setHover(r ? { name: r.name, x: pos.x, y: pos.y } : null);
             lastId = id;
@@ -133,8 +175,7 @@ export default function CesiumGlobe(props: Props) {
       dead = true;
       widget?.destroy();
     };
-    // regions is a module constant; Cesium starts once.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Cesium starts once; regions and onSelect are read through refs.
   }, []);
 
   // Markers: one dot per place, coloured by its trend. Hidden while comparing a place.
@@ -200,6 +241,40 @@ export default function CesiumGlobe(props: Props) {
     };
   }, [scene, selected, source, beforeT, afterT]);
 
+  // Idle spin: on the home view, after a few quiet seconds, turn the Earth
+  // slowly west to east. Any touch, drag, scroll or key stops it at once.
+  useEffect(() => {
+    if (!scene || selected) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const { C, widget } = scene;
+    const canvas = widget.scene.canvas;
+    let quietSince = performance.now();
+    let last = quietSince;
+    let frame = 0;
+    const wake = () => (quietSince = performance.now());
+    const tick = (now: number) => {
+      const dt = Math.min(now - last, 100) / 1000;
+      last = now;
+      const idle = (now - quietSince) / 1000 - IDLE_SECONDS;
+      if (idle > 0) {
+        // Ease in over two seconds so the start is not a jolt.
+        const speed = SPIN_DEG_PER_S * Math.min(idle / 2, 1);
+        widget.camera.rotate(C.Cartesian3.UNIT_Z, C.Math.toRadians(speed * dt));
+        widget.scene.requestRender();
+      }
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    const events = ["pointerdown", "wheel", "touchstart"] as const;
+    for (const e of events) canvas.addEventListener(e, wake, { passive: true });
+    window.addEventListener("keydown", wake);
+    return () => {
+      cancelAnimationFrame(frame);
+      for (const e of events) canvas.removeEventListener(e, wake);
+      window.removeEventListener("keydown", wake);
+    };
+  }, [scene, selected, resetToken]);
+
   // Camera: fly to the open place, or back home.
   const insetKey = `${inset.left},${inset.top},${inset.right},${inset.bottom}`;
   useEffect(() => {
@@ -210,18 +285,21 @@ export default function CesiumGlobe(props: Props) {
     const box = selected && regionBox(selected);
     const [l, t, r, b] = insetKey.split(",").map(Number);
 
-    let destination;
+    const W = canvas.clientWidth;
+    const H = canvas.clientHeight;
+    const fov = (widget.camera.frustum as PerspectiveFrustum).fov ?? Math.PI / 3;
+    let view: { destination: Cartesian3 | Rectangle; heading: number };
     if (!box) {
-      destination = C.Cartesian3.fromDegrees(HOME.lon, HOME.lat, HOME.height);
+      view = framed(C, fov, W, H, HOME.lon, HOME.lat, HOME.height, l, t, r, b);
     } else if (box[2] - box[0] >= 300) {
       // Arctic or Antarctic: look straight down on the pole.
-      destination = C.Cartesian3.fromDegrees(0, box[1] > 0 ? 90 : -90, 7.5e6);
+      view = framed(C, fov, W, H, 0, box[1] > 0 ? 90 : -90, 7.5e6, l, t, r, b);
     } else {
-      destination = paddedRect(C, box, canvas.clientWidth, canvas.clientHeight, l, t, r, b);
+      view = { destination: paddedRect(C, box, W, H, l, t, r, b), heading: 0 };
     }
     widget.camera.flyTo({
-      destination,
-      orientation: { heading: 0, pitch: -Math.PI / 2, roll: 0 },
+      destination: view.destination,
+      orientation: { heading: view.heading, pitch: -Math.PI / 2, roll: 0 },
       duration: reduce ? 0 : 1.8,
       easingFunction: C.EasingFunction.QUADRATIC_IN_OUT,
     });
@@ -345,6 +423,51 @@ function boxLines([w, s, e, n]: [number, number, number, number]): number[][] {
     return [along([-180, lat], [180, lat])];
   }
   return [along([w, s], [e, s]), along([e, s], [e, n]), along([e, n], [w, n]), along([w, n], [w, s])];
+}
+
+/**
+ * Camera straight above a point, moved so the point shows in the middle of the
+ * part of the screen not covered by panels (not the middle of the screen).
+ */
+function framed(
+  C: Cesium,
+  fov: number,
+  W: number,
+  H: number,
+  lon: number,
+  lat: number,
+  height: number,
+  left: number,
+  top: number,
+  right: number,
+  bottom: number,
+): { destination: Cartesian3; heading: number } {
+  const R = 6_378_137;
+  // Where the point should land, in pixels from the centre of the screen.
+  const dx = (left - right) / 2;
+  const dy = (top - bottom) / 2;
+  // Angle from straight down to that pixel, then the arc of Earth that spans it.
+  const focal = Math.max(W, H) / 2 / Math.tan(fov / 2);
+  const alpha = Math.atan(Math.hypot(dx, dy) / focal);
+  const k = ((R + height) / R) * Math.sin(alpha);
+  const arc = k >= 1 ? 0 : Math.asin(k) - alpha;
+  const theta = Math.atan2(dx, -dy); // on screen, clockwise from up
+  const rad = C.Math.toRadians;
+
+  if (Math.abs(lat) >= 89.9) {
+    // Over a pole there is no "north up", so turn the view instead.
+    const north = lat > 0;
+    const camLat = north ? rad(90) - arc : rad(-90) + arc;
+    return { destination: C.Cartesian3.fromRadians(0, camLat, height), heading: (north ? 0 : Math.PI) - theta };
+  }
+  // North up: step from the point the opposite way along the Earth.
+  const la = rad(lat);
+  const bearing = theta + Math.PI;
+  const lat2 = Math.asin(Math.sin(la) * Math.cos(arc) + Math.cos(la) * Math.sin(arc) * Math.cos(bearing));
+  const lon2 =
+    rad(lon) +
+    Math.atan2(Math.sin(bearing) * Math.sin(arc) * Math.cos(la), Math.cos(arc) - Math.sin(la) * Math.sin(lat2));
+  return { destination: C.Cartesian3.fromRadians(lon2, lat2, height), heading: 0 };
 }
 
 /** Grow the box so it lands in the part of the screen not covered by panels. */

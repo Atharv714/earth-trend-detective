@@ -28,3 +28,21 @@ export const GREEN_RAMP = BRGN;
 export const WARMING_LIMIT = 0.5; // °C per decade
 export const RAIN_LIMIT = 15; // % per decade
 export const GREEN_LIMIT = 8; // % per decade
+
+// Haze: clean blue to smoky brown (ColorBrewer PuOr, flipped so haze is warm).
+const HAZE = ["#2d004b", "#542788", "#8073ac", "#b2abd2", "#d8daeb", "#f7f7f7", "#fee0b6", "#fdb863", "#e08214", "#b35806", "#7f3b08"];
+const ICE = [...RDBU].reverse();
+
+/** t = -1 (cleaner) .. +1 (hazier) */
+export const hazeColor = (t: number) => pick(HAZE, (t + 1) / 2);
+/** t = -1 (less ice) .. +1 (more ice) */
+export const iceColor = (t: number) => pick(ICE, (t + 1) / 2);
+
+export const HAZE_RAMP = HAZE;
+export const ICE_RAMP = ICE;
+
+export const AIR_LIMIT = 20; // % per decade
+export const SOIL_LIMIT = 5; // % per decade
+export const GROUND_LIMIT = 40; // mm per decade
+export const ICE_LIMIT = 10; // % per decade
+export const SEA_LIMIT = 4; // cm per decade

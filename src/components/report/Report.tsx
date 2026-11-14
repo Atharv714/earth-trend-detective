@@ -45,6 +45,9 @@ interface Props {
   onRange: (r: [number, number] | null) => void;
   sat: Sat;
   onSat: (s: Sat) => void;
+  /** Season id, or null for the whole year. */
+  season: string | null;
+  onSeason: (id: string | null) => void;
 }
 
 type Load<T> = T | Error | undefined;
@@ -80,22 +83,11 @@ export function Report(props: Props) {
           <h1>{region.name}</h1>
           <p className="report-where">{placeLine(region)}</p>
           <div className="segmented is-small report-tabs" role="radiogroup" aria-label="Question">
-            {LAYERS.map((l) => {
-              const has = !!sourceFor(region, l);
-              return (
-                <button
-                  key={l}
-                  type="button"
-                  role="radio"
-                  aria-checked={layer === l}
-                  disabled={!has}
-                  title={has ? LAYER_INFO[l].question : `No ${LAYER_INFO[l].tab.toLowerCase()} record for ${region.name}`}
-                  onClick={() => onLayer(l)}
-                >
-                  {LAYER_INFO[l].tab}
-                </button>
-              );
-            })}
+            {LAYERS.filter((l) => l === layer || sourceFor(region, l)).map((l) => (
+              <button key={l} type="button" role="radio" aria-checked={layer === l} title={LAYER_INFO[l].question} onClick={() => onLayer(l)}>
+                {LAYER_INFO[l].tab}
+              </button>
+            ))}
           </div>
         </header>
 
@@ -113,12 +105,13 @@ export function Report(props: Props) {
 
 /* ------------------------------------------------------------------ */
 
-function Body({ region, layer, info, overview, range, onRange, onSelect, sat, onSat }: Props & { info: LayerInfo }) {
+function Body({ region, layer, info, overview, range, onRange, onSelect, sat, onSat, season: seasonParam, onSeason }: Props & { info: LayerInfo }) {
   const src = sourceFor(region, layer)!;
   const [months, setMonths] = useState<Load<Month[]>>();
   const [daily, setDaily] = useState<Load<DailyYear[]>>();
-  const [seasonId, setSeasonId] = useState(WHOLE_YEAR.id);
-  const wantsDaily = !!region.daily && layer !== "vegetation";
+  const seasonId = seasonParam ?? WHOLE_YEAR.id;
+  const setSeasonId = (id: string) => onSeason(id === WHOLE_YEAR.id ? null : id);
+  const wantsDaily = !!region.daily && (layer === "warming" || layer === "rainfall");
 
   useEffect(() => {
     let alive = true;
@@ -158,7 +151,14 @@ function Body({ region, layer, info, overview, range, onRange, onSelect, sat, on
     return { bounds, r, series, t, bySeason };
   }, [months, range, season, seasons]);
 
-  if (months === undefined) return <p className="loading" role="status">Reading NASA data…</p>;
+  if (months === undefined)
+    return (
+      <p className="loading" role="status">
+        {src.points
+          ? `Asking NASA POWER for ${src.points.length === 1 ? "this spot’s" : `${src.points.length} spots’`} records since 1981. This takes about 10 seconds the first time…`
+          : "Reading NASA data…"}
+      </p>
+    );
   if (months instanceof Error) return <p className="note">{months.message}</p>;
   if (!data) return <p className="note">This record is too short to test.</p>;
 
@@ -181,7 +181,7 @@ function Body({ region, layer, info, overview, range, onRange, onSelect, sat, on
         <Stripes series={series} range={r} color={info.color} valueText={info.valueText} low={info.low} high={info.high} />
       </section>
 
-      {t && <Stats info={info} layer={layer} t={t} />}
+      {t && <Stats info={info} t={t} />}
 
       <section className="block">
         <div className="block-head">
@@ -258,8 +258,8 @@ function Body({ region, layer, info, overview, range, onRange, onSelect, sat, on
       <Compare layer={layer} info={info} region={region} overview={overview} onSelect={onSelect} />
 
       <p className="source">
-        Data: {src.label}. Trend: Mann-Kendall test and Sen’s slope on one value per year
-        {layer === "vegetation" ? ". Not an official NASA area average; treat small changes with care." : "."}
+        Data: {src.label}. Trend: Mann-Kendall test and Sen’s slope on one value per year.
+        {info.caveat && ` ${info.caveat}`}
       </p>
     </>
   );
@@ -269,7 +269,11 @@ function Body({ region, layer, info, overview, range, onRange, onSelect, sat, on
 /* The answer, in words                                                */
 
 function Headline({ region, info, t, r, season }: { region: Region; info: LayerInfo; t: Trend | null; r: [number, number]; season: Season | null }) {
-  const only = season ? `${season.label} only (${seasonMonths(season)}). ` : "";
+  const only = season
+    ? season.label === seasonMonths(season)
+      ? `${season.label} only. `
+      : `${season.label} only (${seasonMonths(season)}). `
+    : "";
   if (!t) {
     return (
       <section className="headline" style={{ "--tone": MUTED } as CSSProperties}>
@@ -292,16 +296,9 @@ function Headline({ region, info, t, r, season }: { region: Region; info: LayerI
   const to = info.valueText(t.at(r[1]));
   const per10 = info.rateText(rate);
 
-  let sentence: string;
-  if (!t.significant) {
-    sentence = `${info.measure} in ${region.name} went up and down from year to year between ${r[0]} and ${r[1]}, without a steady rise or fall. The small change we measured (${per10} every 10 years) could easily be chance.`;
-  } else if (info.id === "warming") {
-    sentence = `${region.name} ${up ? "warmed" : "cooled"} by about ${Math.abs(t.totalChange).toFixed(1)} °C from ${r[0]} to ${r[1]}: roughly ${Math.abs(rate).toFixed(2)} °C every 10 years.`;
-  } else if (info.id === "rainfall") {
-    sentence = `From ${r[0]} to ${r[1]}, rain in ${region.name} ${up ? "rose" : "fell"} by about ${Math.abs(rate).toFixed(0)}% every 10 years. A typical day went from ${from} to ${to}.`;
-  } else {
-    sentence = `From ${r[0]} to ${r[1]}, the land in ${region.name} became about ${Math.abs(rate).toFixed(0)}% ${up ? "greener" : "less green"} every 10 years, as seen from space.`;
-  }
+  const sentence = t.significant
+    ? info.sentence({ name: region.name, t, r, up, from, to })
+    : `${info.measure} in ${region.name} went up and down from year to year between ${r[0]} and ${r[1]}, without a steady rise or fall. The small change we measured (${per10} every 10 years) could easily be chance.`;
 
   return (
     <section className="headline" style={{ "--tone": tone } as CSSProperties}>
@@ -323,14 +320,12 @@ function Headline({ region, info, t, r, season }: { region: Region; info: LayerI
 /* ------------------------------------------------------------------ */
 /* Two numbers                                                         */
 
-function Stats({ info, layer, t }: { info: LayerInfo; layer: Layer; t: Trend }) {
+function Stats({ info, t }: { info: LayerInfo; t: Trend }) {
   const rate = info.rate(t);
   const dir = rate > 0 ? "up" : rate < 0 ? "down" : "flat";
   const color = t.significant ? (rate >= 0 ? info.hue.up : info.hue.down) : MUTED;
   const enough = t.n >= 15;
   const expected = Math.round((10 * 15) / t.n);
-  const kind = layer === "warming" ? "warmer" : layer === "rainfall" ? "more rain" : "greener";
-  const kindDown = layer === "warming" ? "cooler" : layer === "rainfall" ? "less rain" : "less green";
 
   return (
     <dl className="tiles">
@@ -340,7 +335,7 @@ function Stats({ info, layer, t }: { info: LayerInfo; layer: Layer; t: Trend }) 
         value={info.rateText(rate)}
         mark={<Trendmark dir={dir} color={color} />}
         color={color}
-        note={layer === "warming" ? (rate >= 0 ? "warmer each decade" : "cooler each decade") : rate >= 0 ? `${kind}, per decade` : `${kindDown}, per decade`}
+        note={`${rate >= 0 ? info.more : info.less} each decade`}
       />
       <Tile
         label={`${cap(info.top)} years`}
@@ -423,7 +418,7 @@ function FromSpace({ layer, region, range, sat, onSat }: { layer: Layer; region:
             className="chip"
             onClick={() => onSat({ ...sat, on: true, map: m.id })}
           >
-            {m.id === "truecolor" ? "Photo" : m.id === "vegetation" ? "Plant cover" : "Ground heat"}
+            {m.label}
           </button>
         ))}
       </div>
@@ -602,7 +597,7 @@ function trendLine(t: Trend | null, unit: string) {
 
 function Compare({ layer, info, region, overview, onSelect }: { layer: Layer; info: LayerInfo; region: Region; overview: Overview; onSelect: (id: string) => void }) {
   const [all, setAll] = useState(false);
-  const places = REGIONS.filter((p) => sourceFor(p, layer));
+  const places = (REGIONS.includes(region) ? REGIONS : [region, ...REGIONS]).filter((p) => sourceFor(p, layer));
   const indian = region.group === "India" || region.group === "Indian cities";
   const near = new Set([region.id, "world", ...(indian ? ["india"] : [])]);
   const rateOf = (id: string) => {
@@ -630,7 +625,7 @@ function Compare({ layer, info, region, overview, onSelect }: { layer: Layer; in
   if (mine && earth && region.id !== "world") {
     const m = info.rate(mine);
     const e = info.rate(earth);
-    const what = layer === "warming" ? "warming" : layer === "rainfall" ? "changing in rainfall" : "changing in plant cover";
+    const what = info.changing;
     note =
       Math.abs(m) > Math.abs(e) * 1.15
         ? `${region.name} is ${what} faster than the planet as a whole.`

@@ -2,7 +2,9 @@
 
 import dynamic from "next/dynamic";
 import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { REGIONS, sourceFor, type Layer } from "@/lib/regions";
+import { REGIONS, sourceFor, type Layer, type Region } from "@/lib/regions";
+import { findPlace } from "@/lib/live";
+import type { Case } from "@/lib/cases";
 import { annualize, loadMonthly, trend } from "@/lib/series";
 import { LAYERS, LAYER_INFO, trendColor } from "@/lib/layers";
 import { DEFAULT_MAP, MAP_LAYERS, describeDate, layerDate, mapLayer, type MapLayer } from "@/lib/gibs";
@@ -45,8 +47,11 @@ export default function Workspace({ searchParams }: { searchParams: Promise<SP> 
   const sp = use(searchParams);
   const [layer, setLayer] = useState<Layer>(() => LAYERS.find((l) => l === sp.layer) ?? "warming");
   const [selectedId, setSelectedId] = useState<string | null>(() =>
-    REGIONS.some((r) => r.id === sp.place) ? (sp.place as string) : null,
+    typeof sp.place === "string" && (sp.place.startsWith("find:") || REGIONS.some((r) => r.id === sp.place)) ? sp.place : null,
   );
+  const [season, setSeason] = useState<string | null>(() => (typeof sp.season === "string" ? sp.season : null));
+  /** Places found by name, with live NASA POWER data. */
+  const [found, setFound] = useState<Region[]>([]);
   const [range, setRange] = useState<[number, number] | null>(() => {
     const a = yearParam(sp.from);
     const b = yearParam(sp.to);
@@ -62,7 +67,7 @@ export default function Workspace({ searchParams }: { searchParams: Promise<SP> 
     };
   });
   const [resetToken, setResetToken] = useState(0);
-  const [overview, setOverview] = useState<Record<Layer, Overview>>({ warming: {}, rainfall: {}, vegetation: {} });
+  const [overview, setOverview] = useState<Partial<Record<Layer, Overview>>>({});
   const requested = useRef(new Set<string>());
   const searchRef = useRef<HTMLInputElement>(null);
   const { w, h } = useViewport();
@@ -70,8 +75,10 @@ export default function Workspace({ searchParams }: { searchParams: Promise<SP> 
 
   // Each place's full-record trend for the current question: the dot colours,
   // the list values and the comparison all come from it. Loaded once per layer.
+  const regions = useMemo(() => [...found, ...REGIONS], [found]);
+
   useEffect(() => {
-    for (const r of REGIONS) {
+    for (const r of regions) {
       const src = sourceFor(r, layer);
       const key = `${layer}:${r.id}`;
       if (!src || requested.current.has(key)) continue;
@@ -81,24 +88,23 @@ export default function Workspace({ searchParams }: { searchParams: Promise<SP> 
         (e: Error) => setOverview((o) => ({ ...o, [layer]: { ...o[layer], [r.id]: e } })),
       );
     }
-  }, [layer]);
+  }, [layer, regions]);
 
-  const results = overview[layer];
+  const results = useMemo(() => overview[layer] ?? {}, [overview, layer]);
+
+  // Only places with a record for this question get a dot.
+  const shown = useMemo(() => regions.filter((r) => sourceFor(r, layer)), [regions, layer]);
 
   const colors = useMemo(() => {
     const out: Record<string, string | undefined> = {};
-    for (const r of REGIONS) {
-      if (!sourceFor(r, layer)) {
-        out[r.id] = "#48484a";
-        continue;
-      }
+    for (const r of shown) {
       const t = results[r.id];
       out[r.id] = t instanceof Error ? "#48484a" : trendColor(layer, t);
     }
     return out;
-  }, [layer, results]);
+  }, [layer, results, shown]);
 
-  const selected = REGIONS.find((r) => r.id === selectedId) ?? null;
+  const selected = regions.find((r) => r.id === selectedId) ?? null;
 
   // Satellite maps of two years, side by side on the globe.
   const compare = useMemo<Compare | null>(() => {
@@ -115,6 +121,7 @@ export default function Workspace({ searchParams }: { searchParams: Promise<SP> 
     const set = (k: string, v: string | null) => (v ? url.searchParams.set(k, v) : url.searchParams.delete(k));
     set("layer", layer);
     set("place", selectedId);
+    set("season", selectedId && season ? season : null);
     set("from", selectedId && range ? String(range[0]) : null);
     set("to", selectedId && range ? String(range[1]) : null);
     set("space", selectedId && !sat.on ? "0" : null);
@@ -122,11 +129,48 @@ export default function Workspace({ searchParams }: { searchParams: Promise<SP> 
     set("then", selectedId && sat.years ? String(sat.years[0]) : null);
     set("now", selectedId && sat.years ? String(sat.years[1]) : null);
     window.history.replaceState(null, "", url);
-  }, [layer, selectedId, range, sat]);
+  }, [layer, selectedId, range, sat, season]);
 
-  const open = useCallback((id: string | null) => {
-    setSelectedId(id);
+  const open = useCallback(
+    (id: string | null, pool: Region[] = regions) => {
+      setSelectedId(id);
+      setRange(null);
+      setSeason(null);
+      setSat((s) => ({ on: s.on, map: null, years: null }));
+      // A place without a record for this question opens on the first question it has.
+      const r = pool.find((x) => x.id === id);
+      if (r && !sourceFor(r, layer)) setLayer(LAYERS.find((l) => sourceFor(r, l)) ?? layer);
+    },
+    [regions, layer],
+  );
+
+  /** Find any place by name and open it with live NASA data. */
+  const find = useCallback(
+    async (query: string) => {
+      const r = await findPlace(query);
+      setFound((f) => [r, ...f.filter((x) => x.id !== r.id)]);
+      open(r.id, [r]);
+    },
+    [open],
+  );
+
+  // A shared link to a searched place: look it up again.
+  const pending = useRef(selectedId?.startsWith("find:") ? selectedId.slice(5) : null);
+  useEffect(() => {
+    const q = pending.current;
+    if (!q) return;
+    pending.current = null;
+    findPlace(q).then(
+      (r) => setFound((f) => [r, ...f.filter((x) => x.id !== r.id)]),
+      () => setSelectedId(null),
+    );
+  }, []);
+
+  const openCase = useCallback((c: Case) => {
+    setLayer(c.layer);
+    setSelectedId(c.place);
     setRange(null);
+    setSeason(c.season ?? null);
     setSat((s) => ({ on: s.on, map: null, years: null }));
   }, []);
 
@@ -143,7 +187,7 @@ export default function Workspace({ searchParams }: { searchParams: Promise<SP> 
           e.preventDefault();
           reset();
           requestAnimationFrame(() => searchRef.current?.focus());
-        } else if (/^[1-3]$/.test(e.key)) {
+        } else if (/^[1-8]$/.test(e.key)) {
           e.preventDefault();
           setLayer(LAYERS[Number(e.key) - 1]);
         }
@@ -170,7 +214,7 @@ export default function Workspace({ searchParams }: { searchParams: Promise<SP> 
     <main className="workspace" data-open={selected ? "" : undefined}>
       <div className="globe-layer">
         <Globe
-          regions={REGIONS}
+          regions={shown}
           colors={colors}
           selected={selected}
           onSelect={open}
@@ -192,10 +236,21 @@ export default function Workspace({ searchParams }: { searchParams: Promise<SP> 
           onRange={setRange}
           sat={sat}
           onSat={setSat}
+          season={season}
+          onSeason={setSeason}
         />
       ) : (
         <>
-          <Panel ref={searchRef} regions={REGIONS} layer={layer} results={results} colors={colors} onSelect={open} />
+          <Panel
+            ref={searchRef}
+            regions={shown}
+            layer={layer}
+            results={results}
+            colors={colors}
+            onSelect={open}
+            onFind={find}
+            onCase={openCase}
+          />
 
           <div className="segmented is-top" role="radiogroup" aria-label="Question">
             {LAYERS.map((l, i) => (

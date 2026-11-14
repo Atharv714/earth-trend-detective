@@ -3,6 +3,7 @@
 // method: Mann-Kendall test + Sen's slope on yearly values.
 
 import type { Region, Source } from "./regions";
+import { loadPower } from "./live";
 
 export interface Month {
   year: number;
@@ -58,7 +59,9 @@ export function loadMonthly(src: Source): Promise<Month[]> {
   const key = `${src.path}#${src.column}`;
   let p = monthly.get(key);
   if (!p) {
-    p = fetchText(src.path).then((t) => parseMonthly(t, src));
+    p = src.points
+      ? loadPower(src.points, src.column)
+      : fetchText(src.path).then((t) => monthlyMeans(src.format === "gmsl" ? parseGmsl(t) : parseMonthly(t, src)));
     monthly.set(key, p);
   }
   return p;
@@ -80,6 +83,32 @@ function parseMonthly(t: string, src: Source): Month[] {
     out.push({ year: Number(cells[0].slice(0, 4)), month: Number(cells[0].slice(5, 7)), value: v });
   }
   return out;
+}
+
+/** NASA's sea level indicator: "year.fraction GMSL smoothed" rows after HDR lines, a reading every ~10 days. */
+function parseGmsl(t: string): Month[] {
+  const out: Month[] = [];
+  for (const line of t.split(/\r?\n/)) {
+    if (!line.trim() || line.startsWith("HDR")) continue;
+    const [time, gmsl] = line.trim().split(/\s+/).map(Number);
+    if (!Number.isFinite(time) || !Number.isFinite(gmsl) || Math.abs(gmsl) > 1e6) continue;
+    const year = Math.floor(time);
+    out.push({ year, month: Math.min(12, Math.floor((time - year) * 12) + 1), value: gmsl });
+  }
+  return out;
+}
+
+/** One value per month: daily or 10-day readings become that month's average. */
+export function monthlyMeans(points: Month[]): Month[] {
+  const acc = new Map<number, { year: number; month: number; sum: number; n: number }>();
+  for (const p of points) {
+    const k = p.year * 12 + p.month;
+    const a = acc.get(k) ?? { year: p.year, month: p.month, sum: 0, n: 0 };
+    a.sum += p.value;
+    a.n++;
+    acc.set(k, a);
+  }
+  return [...acc.entries()].sort((a, b) => a[0] - b[0]).map(([, a]) => ({ year: a.year, month: a.month, value: a.sum / a.n }));
 }
 
 /* ------------------------------------------------------------------ */
