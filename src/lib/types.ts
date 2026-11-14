@@ -44,6 +44,8 @@ export type TrendResult = {
   /** Rough years of extra data needed for significance at the current slope (only when not significant). */
   yearsToSignificance?: number | null;
   message?: string; // e.g. "Too few points (n < 10)"
+  /** true when the test ran on monthly anomalies (seasonal cycle removed) even though the chart shows raw values. */
+  seasonalCycleRemoved?: boolean;
 };
 
 /** Series with the trend computed inline (what GET /api/series returns when trend=1). */
@@ -87,7 +89,8 @@ export type Catalog = {
 
 export type CompareResponse = { series: Series[]; trends: TrendResult[] };
 
-export type ExplainResponse = { text: string; ai: true };
+/** ai = false when no LLM is configured and the text is a template fallback. */
+export type ExplainResponse = { text: string; ai: boolean };
 
 export type ApiError = { error: string };
 
