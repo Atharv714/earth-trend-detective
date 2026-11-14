@@ -1,3 +1,7 @@
+# Project: Earth Trend Detective (NASA Space Apps 2026)
+
+Read `docs/HANDOFF.md` before starting any work. It is the single source of truth: challenge brief, data inventory, API contract, stats spec and who owns what (Atharv = frontend, Medhu = backend). If code and the doc disagree, update the doc in the same change.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 ## This is NOT the Next.js you know

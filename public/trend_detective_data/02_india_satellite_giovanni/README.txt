@@ -1,4 +1,4 @@
-NASA Giovanni area-averaged monthly time series (downloaded 2026-11-13, account atharv714)
+NASA Giovanni area-averaged monthly time series (downloaded 2026-11-13)
 Source: https://giovanni.gsfc.nasa.gov  service = "Time Series, Area-Averaged" (ArAvTs)
 Each CSV: time (YYYY-MM), value. Original NetCDF files are in giovanni_nc/. _index.csv lists every file.
 
