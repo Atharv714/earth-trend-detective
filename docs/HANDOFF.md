@@ -271,6 +271,20 @@ Suggested ids: `temperature`, `temperature_max`, `temperature_min`, `rainfall`, 
 
 Priority when several sources exist for the same variable + region: NASA satellite/model file (02/04) > POWER file (01) > POWER live. Always put the real source in `meta.source`.
 
+### 5.4 As built (backend, 14 Nov). Where the code differs from 5.1–5.3
+
+`src/lib/types.ts` is the source of truth; `docs/API.md` has every param and demo URL.
+
+- **`/api/series` returns the trend inline by default** (`SeriesWithTrend = Series & { trend }`); `trend=0` turns it off. `/api/live` and `/api/extremes` do the same.
+- **Monthly trends are tested on anomalies** (seasonal cycle removed), even when the chart shows raw values. `trend.fitLine` is shifted back onto the raw values; `trend.seasonalCycleRemoved = true`. Pass `trendRaw=1` to test the raw values.
+- Extra `TrendResult` fields: `ols { slopePerDecade, pValue }` (t-test second opinion), `yearsToSignificance` (rough "not significant yet" estimate), `message`.
+- `soil_moisture` is split in two because the units differ: `soil_wetness` (POWER, 0–1) and `soil_moisture` (GLDAS, mm).
+- New variable `heat_index_days` (days per year with a "feels like" temperature above 41 °C).
+- All extreme indices are also normal variables, so `/api/series?variable=heatwave_days&region=rajasthan_jodhpur` works.
+- Giovanni region names are merged into the POWER ids: `andhra` → `andhra_pradesh`, `himalaya` → `himalaya_uttarakhand_hp`, `delhi` → `delhi_ncr`. `?source=power|giovanni|power_daily` forces a dataset.
+- `Availability` has a `frequency` field. `/api/explain` returns `{ text, ai }`: `ai: false` means there's no LLM key and the text is a template.
+- `/api/live` also returns `samples: [lat, lon][]` (grid points used). Place names are looked up with Nominatim *with the country outline*, so ocean points are dropped.
+
 ## 6. Features: priority order
 
 **P0, must work (meets the brief):**
