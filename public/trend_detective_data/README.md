@@ -9,6 +9,7 @@ Each folder has its own README with units, conversions and region boxes.
 | 03_india_daily_nasa_power | daily mean/max/min temp, rain, humidity for 15 Indian locations | daily 1981-2025 |
 | 04_world_giovanni | world, continents, Arctic/Antarctic, Amazon, Sahara, Wisconsin + oceans: temp, rain, aerosol, sea surface temp, sea ice, CO, methane, PM2.5 components, groundwater (Punjab/India) | monthly (groundwater daily) |
 | 05_global_sea_level | NASA-SSH global mean sea level, cm vs 1993 | ~weekly 1993-Nov 2026 |
+| 06_vegetation_land_temp_gibs | NDVI for ~33 regions (world, continents, India regions, rainforests, Sahel, China, Siberia...) | monthly 2000-03 to 2025-12 |
 
 ## Themes -> files
 - Global warming: 01 T2M/T2M_MAX, 02 temp_*, 03 daily max/min, 04 temp_*
@@ -18,7 +19,7 @@ Each folder has its own README with units, conversions and region boxes.
 - Glacier & ice: 02 snow_himalaya, 04 seaice_arctic / seaice_antarctic
 - Sea level rise: 05
 - Atmospheric composition: 01 AOD_55, 02 aod_*, 04 aod_*, co_*, ch4_500hpa_*, pm25_*
-- Not included: vegetation / deforestation (NDVI) - not available as a time series in these tools
+- Vegetation / deforestation: 06 NDVI (derived from NASA GIBS imagery, see its README)
 
 ## Live data for any other region
 NASA POWER API works directly from a browser (no login, CORS OK):

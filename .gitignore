@@ -45,3 +45,6 @@ next-env.d.ts
 __pycache__/
 *.pyc
 .claude/settings.local.json
+
+# Cesium runtime, copied from node_modules on install
+/public/cesium/

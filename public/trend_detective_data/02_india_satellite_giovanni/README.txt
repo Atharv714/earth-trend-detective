@@ -14,3 +14,13 @@ Regions (bbox = lon_min,lat_min,lon_max,lat_max):
   india 68,6,98,37 (box also covers parts of neighbours/ocean) | delhi 76.8,28.4,77.4,28.9
   punjab 73.9,29.5,76.9,32.5 | rajasthan 69.5,24.5,76.5,30 | western_ghats 73,10,77,16
   himalaya 76.5,29.5,80.5,33 | andhra 77,13,84.5,19.5 | northeast 89.5,22,97,29
+
+Added 2026-11-14: rain_kerala (74.8,8,77.5,12.5), rain_central_india (76,20,83,25), rain_gangetic_plain (80,24,88,28); same GPM IMERG variable and units as rain_*.
+
+Added 2026-11-14: rain_kerala (74.8,8,77.5,12.5), rain_central_india (76,20,83,25), rain_gangetic_plain (80,24,88,28); same GPM IMERG variable and units as rain_*.
+
+Added 2026-11-14: rain_kerala (74.8,8,77.5,12.5), rain_central_india (76,20,83,25), rain_gangetic_plain (80,24,88,28); same GPM IMERG variable and units as rain_*.
+
+Added 2026-11-14: rain_kerala (74.8,8,77.5,12.5), rain_central_india (76,20,83,25), rain_gangetic_plain (80,24,88,28); same GPM IMERG variable and units as rain_*.
+
+Added 2026-11-14: rain_kerala (74.8,8,77.5,12.5), rain_central_india (76,20,83,25), rain_gangetic_plain (80,24,88,28); same GPM IMERG variable and units as rain_*.

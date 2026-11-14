@@ -32,10 +32,15 @@ pm25_so4_world,M2TMNXAER_5_12_4_SO4SMASS,1980-01,2025-12,552,kg m-3,SO4 Surface 
 rain_africa,GPM_3IMERGM_07_precipitation,1998-01,2025-09,333,mm/hr,Merged satellite-gauge precipitation estimate - Final Run (recommended for general use)
 rain_amazon,GPM_3IMERGM_07_precipitation,1998-01,2025-09,333,mm/hr,Merged satellite-gauge precipitation estimate - Final Run (recommended for general use)
 rain_asia,GPM_3IMERGM_07_precipitation,1998-01,2025-09,333,mm/hr,Merged satellite-gauge precipitation estimate - Final Run (recommended for general use)
+rain_australia,GPM_3IMERGM_07_precipitation,1998-01,2025-09,333,mm/hr,Merged satellite-gauge precipitation estimate - Final Run (recommended for general use)
+rain_east_africa,GPM_3IMERGM_07_precipitation,1998-01,2025-09,333,mm/hr,Merged satellite-gauge precipitation estimate - Final Run (recommended for general use)
 rain_europe,GPM_3IMERGM_07_precipitation,1998-01,2025-09,333,mm/hr,Merged satellite-gauge precipitation estimate - Final Run (recommended for general use)
+rain_mediterranean,GPM_3IMERGM_07_precipitation,1998-01,2025-09,333,mm/hr,Merged satellite-gauge precipitation estimate - Final Run (recommended for general use)
 rain_north_america,GPM_3IMERGM_07_precipitation,1998-01,2025-09,333,mm/hr,Merged satellite-gauge precipitation estimate - Final Run (recommended for general use)
 rain_sahara,GPM_3IMERGM_07_precipitation,1998-01,2025-09,333,mm/hr,Merged satellite-gauge precipitation estimate - Final Run (recommended for general use)
 rain_south_america,GPM_3IMERGM_07_precipitation,1998-01,2025-09,333,mm/hr,Merged satellite-gauge precipitation estimate - Final Run (recommended for general use)
+rain_southeast_asia,GPM_3IMERGM_07_precipitation,1998-01,2025-09,333,mm/hr,Merged satellite-gauge precipitation estimate - Final Run (recommended for general use)
+rain_us_southwest,GPM_3IMERGM_07_precipitation,1998-01,2025-09,333,mm/hr,Merged satellite-gauge precipitation estimate - Final Run (recommended for general use)
 rain_wisconsin,GPM_3IMERGM_07_precipitation,1998-01,2025-09,333,mm/hr,Merged satellite-gauge precipitation estimate - Final Run (recommended for general use)
 rain_world,GPM_3IMERGM_07_precipitation,1998-01,2025-09,333,mm/hr,Merged satellite-gauge precipitation estimate - Final Run (recommended for general use)
 seaice_antarctic,M2TMNXOCN_5_12_4_FRSEAICE,1980-01,2025-12,552,1,ice covered fraction of tile (marine regions)
@@ -50,9 +55,12 @@ temp_amazon,M2TMNXSLV_5_12_4_T2M,1980-01,2025-12,552,K,2-meter air temperature
 temp_antarctic,M2TMNXSLV_5_12_4_T2M,1980-01,2025-12,552,K,2-meter air temperature
 temp_arctic,M2TMNXSLV_5_12_4_T2M,1980-01,2025-12,552,K,2-meter air temperature
 temp_asia,M2TMNXSLV_5_12_4_T2M,1980-01,2025-12,552,K,2-meter air temperature
+temp_australia,M2TMNXSLV_5_12_4_T2M,1980-01,2025-12,552,K,2-meter air temperature
 temp_europe,M2TMNXSLV_5_12_4_T2M,1980-01,2025-12,552,K,2-meter air temperature
+temp_middle_east,M2TMNXSLV_5_12_4_T2M,1980-01,2025-12,552,K,2-meter air temperature
 temp_north_america,M2TMNXSLV_5_12_4_T2M,1980-01,2025-12,552,K,2-meter air temperature
 temp_sahara,M2TMNXSLV_5_12_4_T2M,1980-01,2025-12,552,K,2-meter air temperature
+temp_siberia,M2TMNXSLV_5_12_4_T2M,1980-01,2025-12,552,K,2-meter air temperature
 temp_south_america,M2TMNXSLV_5_12_4_T2M,1980-01,2025-12,552,K,2-meter air temperature
 temp_wisconsin,M2TMNXSLV_5_12_4_T2M,1980-01,2025-12,552,K,2-meter air temperature
 temp_world,M2TMNXSLV_5_12_4_T2M,1980-01,2025-12,552,K,2-meter air temperature

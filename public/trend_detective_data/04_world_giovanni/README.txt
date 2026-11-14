@@ -20,3 +20,13 @@ Regions (bbox lon_min,lat_min,lon_max,lat_max):
   wisconsin -92.9,42.5,-86.8,47.1 (the challenge author's own example region)
   india 68,6,98,37 | delhi 76.8,28.4,77.4,28.9 | punjab 73.9,29.5,76.9,32.5
   bay_of_bengal 80,10,95,22 | arabian_sea 55,8,75,22 | north_atlantic -60,20,-10,60 | pacific_tropics -180,-10,-80,10
+
+Added 2026-11-14: rain_mediterranean (-10,30,40,45), rain_east_africa (29,-12,52,15), rain_australia (113,-39,154,-11), rain_southeast_asia (92,-10,141,25), rain_us_southwest (-120,30,-103,42); temp_australia (113,-39,154,-11), temp_siberia (60,50,140,70), temp_middle_east (34,12,60,38).
+
+Added 2026-11-14: rain_mediterranean (-10,30,40,45), rain_east_africa (29,-12,52,15), rain_australia (113,-39,154,-11), rain_southeast_asia (92,-10,141,25), rain_us_southwest (-120,30,-103,42); temp_australia (113,-39,154,-11), temp_siberia (60,50,140,70), temp_middle_east (34,12,60,38).
+
+Added 2026-11-14: rain_mediterranean (-10,30,40,45), rain_east_africa (29,-12,52,15), rain_australia (113,-39,154,-11), rain_southeast_asia (92,-10,141,25), rain_us_southwest (-120,30,-103,42); temp_australia (113,-39,154,-11), temp_siberia (60,50,140,70), temp_middle_east (34,12,60,38).
+
+Added 2026-11-14: rain_mediterranean (-10,30,40,45), rain_east_africa (29,-12,52,15), rain_australia (113,-39,154,-11), rain_southeast_asia (92,-10,141,25), rain_us_southwest (-120,30,-103,42); temp_australia (113,-39,154,-11), temp_siberia (60,50,140,70), temp_middle_east (34,12,60,38).
+
+Added 2026-11-14: rain_mediterranean (-10,30,40,45), rain_east_africa (29,-12,52,15), rain_australia (113,-39,154,-11), rain_southeast_asia (92,-10,141,25), rain_us_southwest (-120,30,-103,42); temp_australia (113,-39,154,-11), temp_siberia (60,50,140,70), temp_middle_east (34,12,60,38).

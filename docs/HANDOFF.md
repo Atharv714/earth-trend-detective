@@ -51,10 +51,11 @@ All data lives at `public/trend_detective_data/` and is served by Next.js at `/t
 | Folder | Contents | Time | Format |
 |---|---|---|---|
 | `01_india_monthly_nasa_power/` | 16 Indian regions/cities × 9 variables | monthly 1981-01 → 2025-12 | one wide CSV per region |
-| `02_india_satellite_giovanni/` | 23 series: MODIS aerosol, GPM rain, MERRA-2 temp, GLDAS soil/snow/evap for 8 Indian regions | monthly, varies (see below) | one CSV per series, `time,<VAR_ID>` |
+| `02_india_satellite_giovanni/` | 26 series: MODIS aerosol, GPM rain, MERRA-2 temp, GLDAS soil/snow/evap for 8 Indian regions | monthly, varies (see below) | one CSV per series, `time,<VAR_ID>` |
 | `03_india_daily_nasa_power/` | 15 locations, daily mean/max/min temp, rain, humidity | daily 1981-01-01 → 2025-12-31 | one wide CSV per location |
-| `04_world_giovanni/` | 57 series: world, continents, poles, Amazon, Sahara, Wisconsin, oceans, air composition, groundwater | monthly (groundwater daily) | one CSV per series, `time,<VAR_ID>` |
+| `04_world_giovanni/` | 65 series: world, continents, poles, Amazon, Sahara, Wisconsin, oceans, air composition, groundwater | monthly (groundwater daily) | one CSV per series, `time,<VAR_ID>` |
 | `05_global_sea_level/` | NASA-SSH global mean sea level | ~weekly 1993 → Nov 2026 | text file with `HDR` header lines |
+| `06_vegetation_land_temp_gibs/` | NDVI and EVI (plant greenness) for 32 regions, our own averages of NASA GIBS MODIS imagery | monthly 2000-03 → 2025-12 (2025-04 missing) | one CSV per region, `time,<NDVI|EVI>,valid_pixels,area_coverage` |
 
 Original NetCDF files are in `netcdf_originals/` subfolders (for provenance only; the app should not need them).
 
@@ -86,7 +87,7 @@ CSV `time,<VAR_ID>`, `time` = `YYYY-MM`.
 | Prefix | Giovanni VAR_ID | Meaning | Raw unit → display | Range | Regions |
 |---|---|---|---|---|---|
 | `aod_` | MYD08_M3_6_1_Aerosol_Optical_Depth_Land_Ocean_Mean_Mean | MODIS-Aqua aerosol optical depth | unitless | 2002-07 → 2025-12 | delhi, punjab, india, andhra |
-| `rain_` | GPM_3IMERGM_07_precipitation | GPM IMERG rainfall | mm/hr → ×24 = mm/day | 1998-01 → 2025-09 | india, western_ghats, rajasthan, northeast, andhra, punjab |
+| `rain_` | GPM_3IMERGM_07_precipitation | GPM IMERG rainfall | mm/hr → ×24 = mm/day | 1998-01 → 2025-09 | india, western_ghats, rajasthan, northeast, andhra, punjab, kerala, central_india, gangetic_plain |
 | `temp_` | M2TMNXSLV_5_12_4_T2M | MERRA-2 air temperature | K → −273.15 = °C | 1980-01 → 2025-12 | india, delhi, rajasthan, himalaya, andhra |
 | `soil_` | GLDAS_NOAH025_M_2_1_RootMoist_inst | GLDAS root-zone soil moisture | kg/m² (= mm water) | 2000-01 → 2025-12 | india, punjab, rajasthan, andhra |
 | `snow_` | GLDAS_NOAH025_M_2_1_SWE_inst | GLDAS snow water equivalent | kg/m² (= mm water) | 2000-01 → 2025-12 | himalaya |
@@ -116,8 +117,8 @@ CSV `time,<VAR_ID>`.
 
 | Prefix | Meaning | Raw unit → display | Range | Regions |
 |---|---|---|---|---|
-| `temp_` | MERRA-2 air temp | K → °C | 1980-01 → 2025-12 | world, asia, africa, europe, north_america, south_america, arctic, antarctic, amazon, sahara, wisconsin |
-| `rain_` | GPM IMERG rain | mm/hr ×24 → mm/day | 1998-01 → 2025-09 | world, asia, africa, europe, north_america, south_america, amazon, sahara, wisconsin |
+| `temp_` | MERRA-2 air temp | K → °C | 1980-01 → 2025-12 | world, asia, africa, europe, north_america, south_america, australia, arctic, antarctic, siberia, middle_east, amazon, sahara, wisconsin |
+| `rain_` | GPM IMERG rain | mm/hr ×24 → mm/day | 1998-01 → 2025-09 | world, asia, africa, europe, north_america, south_america, australia, amazon, sahara, wisconsin, east_africa, mediterranean, southeast_asia, us_southwest |
 | `aod_` | MODIS-Aqua aerosol | unitless | 2002-07 → 2025-12 | world, asia, africa, amazon, sahara, wisconsin |
 | `sst_` | MODIS-Aqua sea surface temp (day) | °C | 2002-08 → 2025-12 | world, bay_of_bengal, arabian_sea, north_atlantic, pacific_tropics |
 | `seaice_` | MERRA-2 sea-ice fraction of ocean | 0–1 (×100 = %) | 1980-01 → 2025-12 | arctic, antarctic |
@@ -134,6 +135,10 @@ Boxes (`lon_min,lat_min,lon_max,lat_max`): world -180,-90,180,90 · asia 60,5,15
 
 Lines starting `HDR` are header. Data rows are whitespace-separated: `year_fraction  GMSL_cm  GMSL_cm_60day_smoothed`. Missing flag `9.96921E36`. Zero = 1993 mean. ~1,755 rows, 1993 → Nov 2026, about +11.5 cm. Global only (no per-city sea level).
 
+### 2.6b `06_vegetation_land_temp_gibs/`
+
+`ndvi_<region>.csv` and `evi_<region>.csv`, 32 regions each (same boxes as 02/04, plus borneo, congo, sahel, china, siberia, australia, middle_east, mediterranean, east_africa, southeast_asia, us_southwest, kerala, central_india, gangetic_plain; see the folder README). GIBS has no numeric download, so each value is a cos(latitude)-weighted mean of GIBS tile pixels turned back into NDVI with NASA's colormap. **Not an official NASA area average;** say so to judges. Arctic has no December (polar night); `annualize` in `src/lib/series.ts` leaves out months a record never has. Land surface temperature was extracted but left out on purpose (Terra orbit drift fakes a cooling after ~2020). Region-wide Amazon and Borneo are about flat; do not claim "the Amazon is browning".
+
 ### 2.7 Theme → data map (the 8 themes we pitch)
 
 | Theme | Files | Status |
@@ -145,7 +150,7 @@ Lines starting `HDR` are header. Data rows are whitespace-separated: `year_fract
 | Glacier & ice | 02 `snow_himalaya`, 04 `seaice_*` | 🟡 (no glacier mass) |
 | Sea level rise | 05 | 🟡 (global only) |
 | Atmospheric composition | 01 AOD_55, 02/04 `aod_`, 04 `co_`, `ch4_`, `pm25_` | ✅ |
-| Deforestation / vegetation | none | ❌ (NDVI not available as a time series here; leave out or mark "coming soon") |
+| Deforestation / vegetation | 06 `ndvi_*`, `evi_*` | ✅ greening trends (India farmland, China, Sahel); deforestation itself is too local to show in big boxes |
 
 ## 3. Live data (any region on Earth): NASA POWER
 
@@ -298,7 +303,7 @@ Priority when several sources exist for the same variable + region: NASA satelli
 
 **P3, only if everything else is solid:** "Since you were born" mode (enter birth year → changes since then), export chart/CSV, share link.
 
-**Explicitly out of scope:** vegetation/NDVI, per-city sea level, non-linear trend models.
+**Explicitly out of scope:** per-city sea level, non-linear trend models.
 
 ## 7. Statistics spec (backend)
 
@@ -315,13 +320,31 @@ Priority when several sources exist for the same variable + region: NASA satelli
 
 ## 8. Frontend notes (Atharv)
 
-- **Charts:** line chart with the raw series (light), optional 12-month rolling mean, trend line from `fitLine`, shaded season band when a season filter is on.
-- **Verdict card** next to the chart: big slope-per-decade number, coloured badge (significant / not significant), p-value, n, period, source.
-- **Region picker:** dropdown of presets + a map click (lat/lon) + a search box (place name → `/api/live?q=`). Show a loading state for live calls (5–10 s).
-- **Variable picker** grouped by theme: 🌡️ Heat · 💧 Water · 🌫️ Air · 🌊 Ocean & Ice.
-- Always show the plain-English definition under the variable name.
-- Every chart shows a source line, e.g. "Data: NASA MERRA-2 via Giovanni".
-- Mobile-friendly enough for a judge's phone, but optimise for a laptop/projector demo.
+**Built so far (14 Nov):** a full-screen globe for picking a place, and an analysis report for the place you pick. The globe only chooses; the report answers the question. Style: Apple's restraint (one dark glass material, system font, one accent), not a macOS costume.
+- **Globe engine:** CesiumJS 1.147 (`cesium` npm package) with NASA GIBS map tiles; no Cesium ion account or token. The prebuilt `Cesium.js` is copied to `public/cesium/` by `npm install` (`postinstall` → `scripts/copy-cesium.mjs`; the folder is git-ignored and ESLint skips it) and loaded with a script tag in `src/lib/cesium.ts`, so Turbopack does not bundle ~2000 modules. Globe: `src/components/globe/CesiumGlobe.tsx`.
+- **Imagery** (`src/lib/gibs.ts`): GIBS WMTS in EPSG:4326 (covers the poles). Base = Blue Marble; one overlay = borders (the place-name layer was dropped to halve tile traffic). GIBS tiles are 512 px and level 0 is two 288° tiles, so the tiling scheme rectangle is −180, −198, 396, 90.
+- **Home view:** question tabs (Temperature / Rainfall / Vegetation), the place list (`src/components/shell/Panel.tsx`, search with ⌘K) and a dot per place coloured by its full-record trend per decade; grey = not significant. Colour key bottom right.
+- **Report** (`src/components/report/Report.tsx`, charts in `charts.tsx`, tooltips and icons in `ui.tsx`, all hand-written SVG). Opens on the **left** (bottom sheet under 760px); the right side is kept free for the planned chatbot, and the globe frames the place in the space left over. Copy is for the public: every term (per decade, p-value, NDVI, stripes, trend line, record years) has an (i) tooltip that says what it is. Sections, top to bottom:
+  1. Headline: arrow icon, the answer in words ("Getting wetter", "No clear trend"), one plain sentence with the years and real values, and a "Very likely real" / "Could be chance" badge whose tooltip explains the p-value.
+  2. Stripes: one coloured stripe per year with a two-colour key (warming stripes; rain and plant cover use their own ramps). Years outside the tested range are dimmed.
+  3. Two tiles (with up/down arrows): change every 10 years; how many of the 10 hottest/wettest/greenest years fell in the last 15 (and how many chance alone would give). Total change and "is it real" live in the headline, not repeated here.
+  4. "{Measure} each year": dots + the Sen's-slope trend line (bright colour by direction), axis unit, and a two-handle **years to test** slider. Every number is recomputed for the chosen years and season. A season is picked from the seasons bars (6); while one is picked, a "Summer only ✕" pill next to the heading goes back to the whole year.
+  5. Then and now, from space: GIBS maps of two years side by side on the globe with a draggable line, for every question. The maps are clipped to the open place's box (cities: ±0.6°), so Mumbai shows only Mumbai; the World view shows the whole globe. Map choice (Photo / Plant cover / Ground heat; default from `DEFAULT_MAP`), Then and Now year pickers (2001–2025), and "Play the years" steps Now forward one year every 1.7 s. On by default.
+  6. Which season is changing most: one bar per season with icons; solid = clear trend, pale = could be chance (also written next to the bar); clicking one switches the chart to it.
+  7. Daily station data (India places with a file in 03): hotter days or nights (both trends), days above 40/45 °C for Temperature; very heavy rain days (>50 mm) and the longest dry spell for Rainfall. Bar charts draw a trend line only when it is significant.
+  8. Compared with the world: the open place, India (for Indian places) and the whole Earth, ranked by full-record trend, with one sentence (faster / slower / about the same as the planet). "Show all N places" expands to every place; a row opens that place.
+  9. Source line and method.
+- Per-question wording, units, colour ramps and the headline rate (°C/decade for temperature, % of the mean per decade for rain and NDVI) live in `src/lib/layers.ts`.
+- Region catalog with bboxes, sources per layer, daily station and the monsoon-season flag: `src/lib/regions.ts`. Cities have no box; the map frames about 130 km around them.
+- `src/lib/series.ts` loads the CSVs in the browser: `annualize` (one value per year or season; December counts toward the next winter; a missing month is filled with its long-term mean so gaps can't fake a trend; whole year needs all but one month), `trend` (Mann-Kendall with tie correction + Sen's slope, needs 8+ years), `loadDaily` (yearly heat/rain indices from daily files, years with 360+ days). Swap for `/api/trend` once the backend exists; keep the same fields.
+- Deep links: `/?layer=warming&place=punjab&from=1990&to=2025`; satellite maps: `map=truecolor|vegetation|heat`, `then=2005&now=2024`, `space=0` hides them.
+- Shortcuts: ⌘1–3 questions, ⌘K search, Esc back to the whole Earth.
+- Sanity numbers (full record): world +0.16 °C/decade, Arctic +0.44 (about 2.7×), India +0.12; NDVI world +1.9 %/decade, Punjab +5.9, Rajasthan +15.6, Amazon +0.2.
+
+Still to do:
+- **Any point on Earth:** a map click or place search that calls `/api/live` (NASA POWER) and opens the same report. Show a loading state (5–10 s).
+- **More questions** with the same report: soil moisture/drought, ocean warming, sea ice, air quality (data in 01, 02, 04, 05).
+- **Guided mode and demo cases** (§6 items 6–7) as one-click entry points on the home view.
 - Keep a static fallback for demo cases (precomputed JSON) in case the API breaks on stage.
 
 ## 9. Gotchas checklist
@@ -384,7 +407,7 @@ Nothing was modified except: region averaging (POWER regional, average of grid c
 ## 13. Open decisions (decide in the first hour)
 
 1. Backend in Next.js Route Handlers (recommended) or a separate Python service? (The repo is set up for Route Handlers.)
-2. Chart library (e.g. Recharts / Chart.js / ECharts) and map library (e.g. Leaflet / MapLibre).
+2. Chart library (e.g. Recharts / Chart.js / ECharts). Map: **decided**, CesiumJS globe with NASA GIBS imagery (see §8). Charts: **decided**, hand-written SVG (see `src/components/report/charts.tsx`).
 3. AI explanations: yes/no, which provider + key (Azure OpenAI available).
 4. Deploy target for the demo (Vercel is simplest for Next.js) and a local fallback on the laptop.
 5. ~~Remove the Earthdata username line from the data READMEs if the site will be public.~~ **Done (14 Nov):** removed from `README.md` and `02_india_satellite_giovanni/README.txt`. It is still in git history (commit `b291266`); rewrite history before making the repo public if that matters.
