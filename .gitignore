@@ -48,6 +48,7 @@ __pycache__/
 
 # Cesium runtime, copied from node_modules on install
 /public/cesium/
+/public/mediapipe/wasm/
 data-raw/
 
 # Local speech-to-text (voice/server.py)

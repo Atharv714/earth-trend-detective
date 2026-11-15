@@ -3331,3 +3331,559 @@ button.bar-row:hover {
   --chart-segment-background: rgba(255, 255, 255, 0.06);
   --chart-segment-line: rgba(255, 255, 255, 0.25);
 }
+
+/* What else changes when …? (Links.tsx) */
+.links-drivers {
+  margin-bottom: 18px;
+}
+
+.links-control {
+  padding: 14px 14px 12px;
+  border-radius: 12px;
+  background: var(--fill);
+}
+
+.links-ends {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: var(--label-3);
+}
+
+.links-ends strong {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--label);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.links-slider .range-fill {
+  opacity: 0.85;
+}
+
+.links-zero {
+  position: absolute;
+  left: 50%;
+  top: 3px;
+  bottom: 3px;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.links-presets {
+  margin-top: 10px;
+}
+
+.links-summary {
+  margin: 20px 0 0;
+  max-width: 56ch;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--label);
+}
+
+.links-summary b {
+  font-weight: 600;
+}
+
+.links-summary.is-quiet {
+  color: var(--label-2);
+}
+
+.links-web {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-top: 8px;
+  overflow: visible;
+  user-select: none;
+}
+
+.links-node {
+  cursor: pointer;
+}
+
+.links-node-label {
+  font-size: 12px;
+  fill: var(--label-2);
+}
+
+.links-node[data-on] .links-node-label {
+  fill: var(--label);
+  font-weight: 600;
+}
+
+.links-node-value {
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.links-driver-label {
+  font-size: 11px;
+  font-weight: 600;
+  fill: #1c1c1e;
+}
+
+.links-driver-value {
+  font-size: 11px;
+  fill: #1c1c1e;
+  font-variant-numeric: tabular-nums;
+}
+
+.links-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 16px;
+  margin: 2px 0 16px;
+  font-size: 12px;
+  color: var(--label-3);
+}
+
+.links-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.links-legend i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.links-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.links-row {
+  display: grid;
+  grid-template-columns: 16px 1fr auto 12px;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  text-align: left;
+}
+
+.links-row:hover,
+.links-row[aria-expanded="true"] {
+  background: var(--fill);
+}
+
+.links-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  color: var(--label);
+}
+
+.links-row[data-faint] .links-name {
+  color: var(--label-2);
+}
+
+.links-name small,
+.links-val small {
+  font-size: 11.5px;
+  font-weight: 400;
+  color: var(--label-3);
+}
+
+.links-val {
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.links-chev {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: var(--label-3);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: rotate 150ms var(--ease);
+}
+
+.links-row[aria-expanded="true"] .links-chev {
+  rotate: 90deg;
+}
+
+.links-detail {
+  margin: 4px 8px 14px 34px;
+}
+
+.links-detail > p:first-child {
+  margin: 4px 0 0;
+  max-width: 58ch;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--label);
+}
+
+.links-scatter {
+  margin-top: 12px;
+}
+
+.links-scatter-title {
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: var(--label-2);
+}
+
+.links-numbers {
+  margin: 8px 0 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--label-3);
+}
+
+.links-more {
+  margin: 6px 8px 0;
+}
+
+.links-caveat {
+  margin: 16px 0 0;
+  font-size: 12px;
+  color: var(--label-3);
+}
+
+/* Save the detective's answers as a PDF (PdfReport.tsx) */
+.chat-export {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  height: 26px;
+  margin-left: auto;
+  padding: 0 10px 0 8px;
+  border-radius: 13px;
+  background: var(--fill);
+  color: var(--label-2);
+  font-size: 12px;
+  font-weight: 600;
+  transition: background 150ms, color 150ms;
+}
+
+.chat-export:hover:not(:disabled) {
+  background: var(--fill-hover);
+  color: var(--label);
+}
+
+.chat-export:disabled {
+  opacity: 0.4;
+}
+
+.chat-export svg {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* The report preview: a sheet of paper over the app. Light, like a printed report. */
+.pdf {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: rgba(0, 0, 0, 0.72);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  animation: rise-in 200ms var(--ease);
+}
+
+.pdf-bar {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  max-width: 794px;
+  margin: 0 auto;
+  padding: 14px var(--gutter);
+}
+
+.pdf-bar p {
+  margin: 0;
+  color: var(--label-2);
+  font-size: 13px;
+}
+
+.pdf-bar b {
+  color: var(--label);
+  font-weight: 600;
+}
+
+.pdf-bar > div {
+  display: flex;
+  gap: 8px;
+}
+
+.pdf-btn {
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.pdf-btn.is-primary {
+  background: #fff;
+  color: #111;
+}
+
+/* A4 is 794px wide at 96 dpi: the preview is the page. */
+.pdf-sheet {
+  --label: #1d1d1f;
+  --label-2: #5c5c63;
+  --label-3: #8e8e95;
+  --hairline: rgba(0, 0, 0, 0.1);
+  --fill: rgba(0, 0, 0, 0.04);
+  --fill-hover: rgba(0, 0, 0, 0.06);
+  --accent: #0b63ce;
+  --warm: #c2410c;
+  --cool: #1d6fd6;
+  --wet: #0f8a7a;
+  --dry: #9a6514;
+  --green: #2f8a3c;
+  --brown: #8a5a22;
+  --chart-1: var(--accent);
+  --chart-2: var(--warm);
+  --chart-3: var(--green);
+  --chart-4: #7c3aed;
+  --chart-5: #b58900;
+  --chart-positive: var(--green);
+  --chart-negative: var(--warm);
+  --chart-foreground: var(--label);
+  --chart-foreground-muted: var(--label-2);
+  --chart-grid: rgba(0, 0, 0, 0.08);
+  --chart-label: var(--label-2);
+  --chart-crosshair: rgba(0, 0, 0, 0.3);
+
+  width: 794px;
+  max-width: calc(100% - 2 * var(--gutter));
+  min-height: 1123px;
+  margin: 0 auto 48px;
+  padding: 64px 72px;
+  border-radius: 4px;
+  background: #fff;
+  color: var(--label);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  font-size: 13.5px;
+  line-height: 1.6;
+  color-scheme: light;
+}
+
+.pdf-brand {
+  display: flex;
+  justify-content: space-between;
+  margin: 0 0 40px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--label);
+  color: var(--label);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.pdf-brand span + span {
+  color: var(--label-2);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+.pdf-head h1 {
+  margin: 0 0 8px;
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.pdf-toc {
+  margin: 16px 0 0;
+  padding-left: 20px;
+  color: var(--label-2);
+}
+
+.pdf-item + .pdf-item {
+  margin-top: 40px;
+  padding-top: 32px;
+  border-top: 1px solid var(--hairline);
+}
+
+.pdf-q {
+  display: flex;
+  gap: 10px;
+  margin: 0 0 4px;
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  break-after: avoid;
+}
+
+.pdf-q span {
+  color: var(--label-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The answer cards, re-set for paper. */
+.pdf .chat-answer {
+  font-size: 13.5px;
+}
+
+.pdf .viz-verdict-title {
+  font-size: 20px;
+}
+
+.pdf .viz-plot {
+  max-width: 560px;
+}
+
+.pdf .viz-plot[data-kind="bar"] {
+  max-width: 480px;
+}
+
+.pdf .viz-details summary::before {
+  display: none;
+}
+
+.pdf .chat-answer a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 0;
+}
+
+.pdf .viz-next,
+.pdf .viz-loading {
+  display: none;
+}
+
+.pdf .viz {
+  break-inside: avoid;
+}
+
+.pdf-sources {
+  margin-top: 24px;
+  padding-top: 14px;
+  border-top: 1px solid var(--hairline);
+  color: var(--label-2);
+  font-size: 11.5px;
+  line-height: 1.5;
+  break-inside: avoid;
+}
+
+.pdf-sources h3 {
+  margin: 0 0 6px;
+  color: var(--label);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.pdf-sources ol {
+  margin: 0 0 8px;
+  padding-left: 18px;
+}
+
+.pdf-sources li span {
+  color: var(--label-3);
+}
+
+.pdf-sources p {
+  margin: 0;
+  color: var(--label-3);
+}
+
+.pdf-foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 16px;
+  margin-top: 48px;
+  padding-top: 12px;
+  border-top: 1px solid var(--hairline);
+  color: var(--label-3);
+  font-size: 10.5px;
+}
+
+@media (max-width: 600px) {
+  .pdf-sheet {
+    min-height: 0;
+    padding: 32px 22px;
+  }
+
+  .pdf-head h1 {
+    font-size: 23px;
+  }
+}
+
+/* Printing: only the sheet, on white paper. */
+@page {
+  size: A4;
+  margin: 16mm 0;
+}
+
+@media print {
+  html.is-printing-report,
+  html.is-printing-report body {
+    height: auto;
+    overflow: visible;
+    background: #fff;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  html.is-printing-report body > *:not(.pdf) {
+    display: none !important;
+  }
+
+  html.is-printing-report .pdf {
+    position: static;
+    overflow: visible;
+    background: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    animation: none;
+  }
+
+  .pdf-bar {
+    display: none;
+  }
+
+  .pdf-sheet {
+    width: auto;
+    max-width: none;
+    min-height: 0;
+    margin: 0;
+    padding: 0 18mm;
+    border-radius: 0;
+    box-shadow: none;
+  }
+}

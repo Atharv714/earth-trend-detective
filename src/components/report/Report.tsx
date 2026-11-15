@@ -21,6 +21,7 @@ import { LAYERS, LAYER_INFO, signed, type LayerInfo } from "@/lib/layers";
 import { DEFAULT_MAP, MAP_LAYERS, mapLayer, type MapLayer } from "@/lib/gibs";
 import { DivergingBars, PairChart, RangeSlider, Stripes, TrendChart, YearBars, type BarRow } from "./charts";
 import { Info, SeasonIcon, Trendmark, Verdict } from "./ui";
+import { Links } from "./Links";
 
 export type Overview = Record<string, Trend | null | Error | undefined>;
 
@@ -252,6 +253,8 @@ function Body({ region, layer, info, overview, range, onRange, onSelect, sat, on
           onPick={(id) => setSeasonId(id === season.id ? WHOLE_YEAR.id : id)}
         />
       </section>
+
+      <Links region={region} layer={layer} range={r} season={season} />
 
       {wantsDaily && region.daily && <Daily layer={layer} daily={daily} station={region.daily.station} r={r} />}
 

@@ -1,0 +1,96 @@
+/* Hand control (HandControl.tsx): the toggle, and the camera preview with the hand's bones. */
+
+.hands {
+  position: absolute;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  transition: left 0.4s var(--ease), bottom 0.4s var(--ease);
+}
+
+.hands-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px 0 9px;
+  border-radius: 15px;
+  background: var(--material);
+  -webkit-backdrop-filter: blur(30px) saturate(160%);
+  backdrop-filter: blur(30px) saturate(160%);
+  box-shadow: var(--edge);
+  color: var(--label-2);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.hands-toggle:hover {
+  color: var(--label);
+}
+
+.hands-toggle[aria-pressed="true"] {
+  color: #7fe0ff;
+  box-shadow: inset 0 0 0 0.5px rgba(127, 224, 255, 0.5), 0 0 18px rgba(127, 224, 255, 0.18);
+}
+
+.hands-toggle svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.hands-cam {
+  position: relative;
+  width: 192px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #000;
+  box-shadow: var(--edge), var(--lift);
+}
+
+.hands-cam video,
+.hands-cam canvas {
+  display: block;
+  width: 192px;
+  height: 144px;
+}
+
+.hands-cam video {
+  transform: scaleX(-1); /* a mirror, so your right hand is on the right */
+  opacity: 0.55;
+  object-fit: cover;
+}
+
+.hands-cam canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.hands-status {
+  padding: 6px 9px 7px;
+  background: rgba(0, 0, 0, 0.6);
+  color: var(--label-2);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.hands-cam[data-mode="turn"] .hands-status {
+  color: #7fe0ff;
+}
+
+.hands-cam[data-mode="zoom"] .hands-status,
+.hands-cam[data-mode="slide"] .hands-status {
+  color: #ffd27a;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hands {
+    transition: none;
+  }
+}

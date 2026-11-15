@@ -13,6 +13,7 @@ import type {
   Rectangle,
 } from "cesium";
 import { loadCesium, type Cesium } from "@/lib/cesium";
+import { HAND_ACTIVE_EVENT, HAND_SPLIT_EVENT, HandControl } from "./HandControl";
 import { BASE, BORDERS, regionBox, tileUrl, type TileSource } from "@/lib/gibs";
 import type { Region } from "@/lib/regions";
 import type { GlobeGrid } from "@/lib/agent/view";
@@ -344,7 +345,7 @@ export default function CesiumGlobe(props: Props) {
       frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
-    const events = ["pointerdown", "wheel", "touchstart"] as const;
+    const events = ["pointerdown", "wheel", "touchstart", HAND_ACTIVE_EVENT] as const;
     for (const e of events) canvas.addEventListener(e, wake, { passive: true });
     window.addEventListener("keydown", wake);
     return () => {
@@ -560,6 +561,7 @@ export default function CesiumGlobe(props: Props) {
       {scene && probe && (grid || probe.focus || imagery) && (
         <ProbeCard probe={probe} grid={grid} imagery={imagery} inset={inset} onSwitch={both ? (show) => setPicked({ key: both, show }) : undefined} />
       )}
+      {scene && <HandControl C={scene.C} widget={scene.widget} left={inset.left + 16} bottom={inset.bottom + 16} />}
       {scene && compare && (
         <Split key={selected?.id} scene={scene} inset={inset} before={compare.before.label} after={compare.after.label} />
       )}
@@ -708,6 +710,16 @@ function Split({ scene, inset, before, after }: { scene: Scene; inset: Props["in
     const r = host.getBoundingClientRect();
     setPos(Math.min(0.97, Math.max(0.03, (clientX - r.left) / r.width)));
   };
+
+  // A pinch moved sideways (HandControl.tsx) slides the line by how far the hand moved.
+  useEffect(() => {
+    const slide = (e: Event) => {
+      const width = ref.current?.parentElement?.clientWidth || window.innerWidth;
+      setPos((p) => Math.min(0.97, Math.max(0.03, p + (e as CustomEvent<number>).detail / width)));
+    };
+    window.addEventListener(HAND_SPLIT_EVENT, slide);
+    return () => window.removeEventListener(HAND_SPLIT_EVENT, slide);
+  }, []);
 
   return (
     <div

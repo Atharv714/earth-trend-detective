@@ -6,7 +6,8 @@ import type { Month } from "./series";
 import type { Region, Source } from "./regions";
 
 const POWER = "https://power.larc.nasa.gov/api/temporal/monthly/point";
-const PARAMS = ["T2M", "PRECTOTCORR", "GWETROOT", "AOD_55"] as const;
+/** The last four feed the variables lab (what moves together); one request fetches all of them. */
+const PARAMS = ["T2M", "PRECTOTCORR", "GWETROOT", "AOD_55", "RH2M", "CLOUD_AMT", "ALLSKY_SFC_SW_DWN", "WS2M"] as const;
 type Param = (typeof PARAMS)[number];
 const FIRST_YEAR = 1981;
 const LAST_YEAR = 2025;
@@ -33,7 +34,8 @@ async function fetchPoint(lat: number, lon: number): Promise<Record_> {
     for (const [k, v] of Object.entries(json.properties.parameter[p] ?? {})) {
       const month = Number(k.slice(4));
       if (month < 1 || month > 12 || v <= -999) continue; // 13 is the yearly value; -999 is missing
-      m.set(Number(k.slice(0, 4)) * 12 + month - 1, v);
+      // The AG community gives sunlight in MJ/m²/day; our files use kWh/m²/day.
+      m.set(Number(k.slice(0, 4)) * 12 + month - 1, p === "ALLSKY_SFC_SW_DWN" ? v / 3.6 : v);
     }
     out[p] = m;
   }

@@ -6,7 +6,7 @@ import type { Trend, YearValue } from "@/lib/series";
 /* ------------------------------------------------------------------ */
 /* Shared                                                              */
 
-function useWidth<T extends HTMLElement>() {
+export function useWidth<T extends HTMLElement>() {
   const ref = useRef<T>(null);
   const [width, setWidth] = useState(0);
   useEffect(() => {
@@ -19,7 +19,7 @@ function useWidth<T extends HTMLElement>() {
   return [ref, width] as const;
 }
 
-function niceTicks(lo: number, hi: number, count = 4): number[] {
+export function niceTicks(lo: number, hi: number, count = 4): number[] {
   const span = hi - lo || Math.abs(hi) || 1;
   const raw = span / count;
   const mag = 10 ** Math.floor(Math.log10(raw));

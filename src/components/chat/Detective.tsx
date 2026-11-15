@@ -16,6 +16,7 @@ import { Mic, transcribe } from "@/lib/voice/mic";
 import { speak, stopSpeaking, unlockSpeech } from "@/lib/voice/speak";
 import { Answer, pieces } from "./blocks";
 import { Check, Plan, Trail, chartsOf, parseOutput, toolParts, type ChartSpec } from "./parts";
+import { PdfReport, hasReport } from "./PdfReport";
 
 const TRANSPORT = new DefaultChatTransport({ api: "/api/chat" });
 
@@ -80,6 +81,9 @@ export function Detective({ open, view, onShow, onProbe, onApply, onActivity, on
   );
 
   const [text, setText] = useState("");
+  /** The report preview (save the conversation as a PDF). */
+  const [report, setReport] = useState(false);
+  const closeReport = useCallback(() => setReport(false), []);
   const input = useRef<HTMLTextAreaElement>(null);
   const scroller = useRef<HTMLDivElement>(null);
 
@@ -326,6 +330,20 @@ export function Detective({ open, view, onShow, onProbe, onApply, onActivity, on
           <h2>Ask the detective</h2>
           <p>Answers come from NASA records, tested for real trends.</p>
         </div>
+        {hasReport(messages) && (
+          <button
+            type="button"
+            className="chat-export"
+            onClick={() => setReport(true)}
+            disabled={busy}
+            title={busy ? "Wait for the answer to finish" : "Save every answer as a PDF report"}
+          >
+            <svg viewBox="0 0 16 16" aria-hidden>
+              <path d="M8 2.5v7M5 6.75 8 9.75l3-3M3 11.5v1a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-1" />
+            </svg>
+            PDF
+          </button>
+        )}
         <button type="button" className="chat-close" onClick={onClose} aria-label="Close the detective" title="Close (⌘J)">
           <svg viewBox="0 0 16 16" aria-hidden>
             <path d="m4 4 8 8M12 4l-8 8" />
@@ -435,6 +453,7 @@ export function Detective({ open, view, onShow, onProbe, onApply, onActivity, on
           </button>
         )}
       </form>
+      {report && <PdfReport messages={messages} view={view} charts={charts} onClose={closeReport} />}
     </aside>
   );
 }
