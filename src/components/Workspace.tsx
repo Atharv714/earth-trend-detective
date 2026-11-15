@@ -14,6 +14,7 @@ import type { Compare } from "./globe/CesiumGlobe";
 import { Detective, type Activity } from "./chat/Detective";
 import type { View, ViewChange } from "@/lib/agent/view";
 import type { UiPatch } from "@/lib/router/types";
+import type { Probe } from "@/lib/probe";
 
 const Globe = dynamic(() => import("./globe/CesiumGlobe"), {
   ssr: false,
@@ -75,6 +76,11 @@ export default function Workspace({ searchParams }: { searchParams: Promise<SP> 
   const [chatOpen, setChatOpen] = useState(() => sp.ask === "1");
   /** Listening or working: the bar along the top. */
   const [activity, setActivity] = useState<Activity>("idle");
+  /** What the detective is looking at, drawn on the globe. Escape or home hides it until it looks somewhere new. */
+  const [probe, setProbe] = useState<Probe | null>(null);
+  const [hidden, setHidden] = useState<string | null>(null);
+  const probeKey = probe ? `${probe.focus?.id}|${probe.grid?.id}|${probe.imagery?.id}` : null;
+  const shownProbe = probe && probeKey !== hidden ? probe : null;
   const [overview, setOverview] = useState<Partial<Record<Layer, Overview>>>({});
   const requested = useRef(new Set<string>());
   const searchRef = useRef<HTMLInputElement>(null);
@@ -209,8 +215,9 @@ export default function Workspace({ searchParams }: { searchParams: Promise<SP> 
 
   const reset = useCallback(() => {
     open(null);
+    setHidden(probeKey);
     setResetToken((n) => n + 1);
-  }, [open]);
+  }, [open, probeKey]);
 
   /**
    * Change the screen as the router asked (src/lib/router), keeping whatever it
@@ -340,6 +347,8 @@ export default function Workspace({ searchParams }: { searchParams: Promise<SP> 
           compare={compare}
           inset={inset}
           resetToken={resetToken}
+          probe={shownProbe}
+          busy={activity === "work"}
         />
       </div>
 
@@ -386,7 +395,7 @@ export default function Workspace({ searchParams }: { searchParams: Promise<SP> 
             ))}
           </div>
 
-          <Legend layer={layer} />
+          {!shownProbe && <Legend layer={layer} />}
         </>
       )}
 
@@ -397,7 +406,7 @@ export default function Workspace({ searchParams }: { searchParams: Promise<SP> 
         </span>
       </div>
 
-      <Detective open={chatOpen} view={view} onShow={show} onApply={apply}
+      <Detective open={chatOpen} view={view} onShow={show} onProbe={setProbe} onApply={apply}
         onActivity={setActivity}
         onOpen={openChat}
         onClose={() => setChatOpen(false)}

@@ -86,7 +86,7 @@ export const LAYER_INFO: Record<Layer, LayerInfo> = {
     top: "hottest",
     rate: (t) => t.slopePerDecade,
     rateText: (v) => `${signed(v, 2)} °C`,
-    rateUnit: "°C per decade",
+    rateUnit: "per decade",
     valueText: (v) => `${v.toFixed(1)} °C`,
     color: warmColor,
     limit: WARMING_LIMIT,

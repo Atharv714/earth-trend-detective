@@ -8,6 +8,7 @@ import { DefaultChatTransport, type UIMessage } from "ai";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { LAYER_INFO } from "@/lib/layers";
 import type { CheckData, PlanData, View, ViewChange } from "@/lib/agent/view";
+import { probeOf, type Probe } from "@/lib/probe";
 import { routeText } from "@/lib/router/client";
 import { isEmpty, type UiPatch } from "@/lib/router/types";
 import { Mic, transcribe } from "@/lib/voice/mic";
@@ -20,6 +21,8 @@ interface Props {
   open: boolean;
   view: View;
   onShow: (v: ViewChange) => void;
+  /** What the detective is looking at, for the globe. */
+  onProbe: (p: Probe | null) => void;
   /** Change the screen as the router asked; says what it did and returns the new view. */
   onApply: (p: UiPatch) => Promise<{ said: string; view: View; failed?: boolean }>;
   /** Listening, working or idle, for the bar along the top. */
@@ -60,7 +63,7 @@ function suggestions(v: View): string[] {
   ];
 }
 
-export function Detective({ open, view, onShow, onApply, onActivity, onOpen, onClose }: Props) {
+export function Detective({ open, view, onShow, onProbe, onApply, onActivity, onOpen, onClose }: Props) {
   const { messages, sendMessage, status, stop, error, regenerate, clearError } = useChat({ transport: TRANSPORT });
   /** The message being routed (screen changes stay out of the chat; only the detective's turns go in). */
   const [routing, setRouting] = useState<string | null>(null);
@@ -126,17 +129,40 @@ export function Detective({ open, view, onShow, onApply, onActivity, onOpen, onC
     }
   }, [messages]);
 
-  const send = async (q: string) => {
+  // The globe follows the investigation: the areas of the newest answer that
+  // read any, framed together, with its widest heat map.
+  const live = status === "submitted" || status === "streaming";
+  const probe = useMemo<Probe | null>(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i];
+      if (m.role !== "assistant") continue;
+      const p = probeOf(
+        m.parts.map((x) => ("data" in x ? { type: x.type, data: { ...(x.data as object), id: "id" in x ? x.id : undefined } } : { type: x.type })),
+        live && i === messages.length - 1,
+      );
+      if (p) return p;
+    }
+    return null;
+  }, [messages, live]);
+  // Every streamed token makes a new probe object: hand the globe one only when
+  // something it draws changed, so the heat map and the sweep don't restart.
+  const probeKey = probe ? [probe.focus?.id, probe.focus?.name, probe.focus?.what, probe.grid?.id, probe.imagery?.id, probe.scanning].join("/") : "";
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => onProbe(probe), [probeKey, onProbe]);
+
+  // Typed questions go straight to the detective. Only speech goes through the
+  // router, which can turn "fly to Kerala" into a screen change with no chat turn.
+  const send = async (q: string, spoken = false) => {
     const t = q.trim();
     if (!t || busy) return;
     if (error) clearError();
     pinned.current = true;
     setText("");
-    setRouting(t);
+    if (spoken) setRouting(t);
     try {
       // The router decides in under a second: change the screen, ask the
       // detective, or both. Anything it is unsure of goes to the detective.
-      const r = await routeText(t, view);
+      const r = spoken ? await routeText(t, view) : null;
       // A screen change happens on the globe and stays out of the chat. If it
       // can't be done (a place that can't be found), the detective takes it.
       if (r && r.route === "ui" && !isEmpty(r.patch) && !(await onApply(r.patch)).failed) return;
@@ -177,7 +203,7 @@ export function Detective({ open, view, onShow, onApply, onActivity, onOpen, onC
       setVoice("hear");
       const { text } = await transcribe(pcm);
       setVoice("idle");
-      if (text) await sendRef.current(text);
+      if (text) await sendRef.current(text, true);
     } catch (e) {
       take.current = null;
       setLevel(0);

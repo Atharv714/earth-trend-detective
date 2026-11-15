@@ -40,3 +40,53 @@ export interface CheckData {
 
 /** Yearly series the chat draws as a small chart: [year, value]. */
 export type Series = [number, number][];
+
+/** An area the detective is looking at (data-focus part), drawn as an outline on the globe. */
+export interface GlobeFocus {
+  name: string;
+  /** [west, south, east, north] */
+  box: [number, number, number, number];
+  /** What it is doing there, as a short phrase for the globe caption. */
+  what: string;
+}
+
+/** Every grid cell's trend over an area (data-grid part), drawn as a heat map on the globe. */
+export interface GlobeGrid {
+  name: string;
+  /** What was measured, in words. */
+  title: string;
+  units: string;
+  /** NASA POWER code, or WATER_STORAGE. Picks the colours. */
+  parameter: string;
+  box: [number, number, number, number];
+  /** Cell size in degrees: [longitude, latitude]. */
+  step: [number, number];
+  years: [number, number];
+  season?: string;
+  /** [lat, lon, change per decade, significant 1 or 0] */
+  cells: [number, number, number, number][];
+}
+
+/** A NASA satellite map on the globe (data-imagery part): a GIBS layer for one date, or two split left and right. */
+export interface GlobeImagery {
+  name: string;
+  /** GIBS layer id */
+  layer: string;
+  /** What the colours measure */
+  title: string;
+  /** The layer's full name (satellite, product) */
+  source: string;
+  matrixSet: string;
+  maxLevel: number;
+  ext: "png" | "jpeg";
+  /** GIBS date; none for a layer without dates */
+  time?: string;
+  /** The date in words */
+  label: string;
+  /** A second date, shown on the left of a split */
+  before?: string;
+  beforeLabel?: string;
+  /** Where to draw it [west, south, east, north]; null is the whole Earth. */
+  box: [number, number, number, number] | null;
+  legend: { stops: string[]; min: string; max: string } | null;
+}

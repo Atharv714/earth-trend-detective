@@ -107,6 +107,20 @@ button {
   user-select: none;
 }
 
+/* A heat-map square's number, by the mouse. */
+.cell-tip {
+  display: grid;
+  gap: 1px;
+  padding: 5px 9px;
+  white-space: nowrap;
+}
+
+.cell-tip span {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 11px;
+}
+
+
 /* Panel */
 .panel {
   position: absolute;
@@ -1596,6 +1610,117 @@ button.bar-row:hover {
   from {
     opacity: 0;
     transform: translateY(6px);
+  }
+}
+
+/* What the detective is looking at: a caption under its area on the globe (CesiumGlobe ProbeCard) */
+.probe {
+  position: absolute;
+  z-index: 6;
+  translate: -50% 0;
+  width: min(340px, calc(100% - 32px));
+  margin: 0;
+  padding: 10px 14px 11px;
+  border-radius: 14px;
+  background: var(--material);
+  -webkit-backdrop-filter: blur(30px) saturate(160%);
+  backdrop-filter: blur(30px) saturate(160%);
+  box-shadow: var(--edge), var(--lift);
+  pointer-events: none;
+  animation: rise-in 0.35s ease-out;
+}
+
+.probe-place {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--label);
+}
+
+.probe-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: probe-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes probe-pulse {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+.probe-what {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--label-2);
+}
+
+/* Satellite map / Trend: both exist for one question, the globe shows one at a time */
+.probe-switch {
+  display: flex;
+  gap: 2px;
+  margin-top: 8px;
+  padding: 2px;
+  border-radius: 8px;
+  background: var(--fill, rgba(127, 127, 127, 0.16));
+  pointer-events: auto;
+}
+
+.probe-switch button {
+  flex: 1;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  color: var(--label-2);
+  cursor: pointer;
+}
+
+.probe-switch button[aria-pressed="true"] {
+  background: var(--material);
+  color: var(--label);
+  font-weight: 600;
+  box-shadow: var(--edge);
+}
+
+.probe-switch button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.probe-bar {
+  height: 6px;
+  margin-top: 9px;
+  border-radius: 3px;
+}
+
+.probe-ticks {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 5px;
+  font-size: 11px;
+  color: var(--label-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.probe figcaption {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--label-3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .probe,
+  .probe-dot {
+    animation: none;
   }
 }
 

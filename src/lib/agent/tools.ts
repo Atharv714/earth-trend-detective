@@ -4,18 +4,17 @@ import "server-only";
 
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
-import { LAYERS } from "../layers";
+import { LAYERS, LAYER_INFO } from "../layers";
 import type { Layer } from "../regions";
 import { compare, extremes, getTrend, listPlaces, monthlyPattern, placeCard, resolvePlace, seasonBreakdown, versusWorld, viewChange } from "./data";
+import { focusOn, globeWriter } from "./globe";
 import { WATER_STORAGE, calculate, nasaPower, scanRegion, waterStorage } from "./research";
+import { findSatelliteLayers, measureSatellite, showSatelliteMap } from "./satellite";
 import { powerParameters, webSearch } from "./web";
 
 const layer = z.enum(LAYERS as [Layer, ...Layer[]]).describe("warming, rainfall, vegetation, air, drought, groundwater, ice or sealevel");
 const place = z.string().describe('A place id from list_places ("delhi"), its name, or any place name on Earth ("Lagos")');
-const season = z
-  .string()
-  .nullish()
-  .describe('Season id: India uses winter, summer, monsoon, post; elsewhere djf, mam, jja, son. Omit for the whole year.');
+const season = z.string().nullish().describe("Season id: India uses winter, summer, monsoon, post; elsewhere djf, mam, jja, son. Omit for the whole year.");
 const year = z.number().int().min(1900).max(2100).nullish();
 
 /** A short letters-only id (letters, so the number check never sees it). */
@@ -34,16 +33,30 @@ function tagCharts(out: unknown): unknown {
   return o;
 }
 
-/** Errors go back to the model as text, so it can pick another place or question. */
+/**
+ * Errors go back to the model as text, so it can pick another place or question.
+ * The run's stream writer is made available to the tool, so research tools can
+ * draw on the globe as they go (research.ts, toGlobe).
+ */
 const safe =
   <A>(fn: (a: A) => Promise<unknown>) =>
-  async (a: A) => {
+  async (a: A, config?: { writer?: ((chunk: unknown) => void) | null }) => {
     try {
-      return JSON.stringify(tagCharts(await fn(a)));
+      return JSON.stringify(tagCharts(await globeWriter.run(config?.writer ?? undefined, () => fn(a))));
     } catch (e) {
       return JSON.stringify({ error: (e as Error).message });
     }
   };
+
+/** Fly the globe to a place before reading it. A wrong name is left for the tool to report. */
+async function lookAt(q: string, what: string) {
+  const r = await resolvePlace(q).catch(() => null);
+  if (!r || r.id === "world") return;
+  const box = r.bbox ?? [r.lon - 0.5, r.lat - 0.5, r.lon + 0.5, r.lat + 0.5];
+  if (box[2] - box[0] > 120) return;
+  focusOn(r.name, box, what);
+}
+const reading = (layer: Layer) => `Testing its ${LAYER_INFO[layer].measure.toLowerCase()} record`;
 
 export const listPlacesTool = tool(safe(({ layer }: { layer?: Layer | null }) => Promise.resolve(listPlaces(layer ?? undefined))), {
   name: "list_places",
@@ -52,41 +65,74 @@ export const listPlacesTool = tool(safe(({ layer }: { layer?: Layer | null }) =>
   schema: z.object({ layer: layer.nullish().describe("Only places with this record") }),
 });
 
-export const findPlaceTool = tool(safe(async ({ query }: { query: string }) => placeCard(await resolvePlace(query))), {
-  name: "find_place",
-  description:
-    "Look up any place by name. Catalog places come back with their records; anywhere else gets live NASA POWER data (warming, rainfall, drought, air) averaged over the area.",
-  schema: z.object({ query: z.string() }),
-});
+export const findPlaceTool = tool(
+  safe(async ({ query }: { query: string }) => {
+    await lookAt(query, "Finding it on the map");
+    return placeCard(await resolvePlace(query));
+  }),
+  {
+    name: "find_place",
+    description:
+      "Look up any place by name. Catalog places come back with their records; anywhere else gets live NASA POWER data (warming, rainfall, drought, air) averaged over the area.",
+    schema: z.object({ query: z.string() }),
+  },
+);
 
-export const getTrendTool = tool(safe(getTrend), {
-  name: "get_trend",
-  description:
-    "Test whether a place's record has a real trend: Mann-Kendall test and Sen's slope on one value per year. Returns the verdict, rate per decade, total change, the chance it is luck (p-value), and the yearly series. Optional season and year window (at least 10 years).",
-  schema: z.object({ place, layer, season, from: year, to: year }),
-});
+export const getTrendTool = tool(
+  safe(async (a: Parameters<typeof getTrend>[0]) => {
+    await lookAt(a.place, reading(a.layer));
+    return getTrend(a);
+  }),
+  {
+    name: "get_trend",
+    description:
+      "Test whether a place's record has a real trend: Mann-Kendall test and Sen's slope on one value per year. Returns the verdict, rate per decade, total change, the chance it is luck (p-value), and the yearly series. Optional season and year window (at least 10 years).",
+    schema: z.object({ place, layer, season, from: year, to: year }),
+  },
+);
 
-export const compareTool = tool(safe(compare), {
-  name: "compare_places",
-  description:
-    "Test the same question in several places (up to 12) and rank them by rate per decade. Flags places whose trends point in opposite directions.",
-  schema: z.object({ places: z.array(z.string()).min(2).max(12), layer, season, from: year, to: year }),
-});
+export const compareTool = tool(
+  safe(async (a: Parameters<typeof compare>[0]) => {
+    await Promise.all(a.places.map((p) => lookAt(p, `Comparing ${a.places.length} places`)));
+    return compare(a);
+  }),
+  {
+    name: "compare_places",
+    description:
+      "Test the same question in several places (up to 12) and rank them by rate per decade. Flags places whose trends point in opposite directions.",
+    schema: z.object({ places: z.array(z.string()).min(2).max(12), layer, season, from: year, to: year }),
+  },
+);
 
-export const versusWorldTool = tool(safe(({ place, layer }: { place: string; layer: Layer }) => versusWorld(place, layer)), {
-  name: "versus_world",
-  description: "How fast a place is changing compared with the whole Earth, as a ratio of their rates per decade.",
-  schema: z.object({ place, layer }),
-});
+export const versusWorldTool = tool(
+  safe(async ({ place, layer }: { place: string; layer: Layer }) => {
+    await lookAt(place, "Comparing it with the whole Earth");
+    return versusWorld(place, layer);
+  }),
+  {
+    name: "versus_world",
+    description: "How fast a place is changing compared with the whole Earth, as a ratio of their rates per decade.",
+    schema: z.object({ place, layer }),
+  },
+);
 
-export const seasonTool = tool(safe(({ place, layer }: { place: string; layer: Layer }) => seasonBreakdown(place, layer)), {
-  name: "season_breakdown",
-  description: "The trend for every season and the whole year at one place. Finds changes hidden in one season.",
-  schema: z.object({ place, layer }),
-});
+export const seasonTool = tool(
+  safe(async ({ place, layer }: { place: string; layer: Layer }) => {
+    await lookAt(place, "Testing every season");
+    return seasonBreakdown(place, layer);
+  }),
+  {
+    name: "season_breakdown",
+    description: "The trend for every season and the whole year at one place. Finds changes hidden in one season.",
+    schema: z.object({ place, layer }),
+  },
+);
 
 export const monthlyTool = tool(
-  safe(({ place, layer, year }: { place: string; layer: Layer; year?: number | null }) => monthlyPattern(place, layer, year)),
+  safe(async ({ place, layer, year }: { place: string; layer: Layer; year?: number | null }) => {
+    await lookAt(place, "Reading its months");
+    return monthlyPattern(place, layer, year);
+  }),
   {
     name: "monthly_pattern",
     description: "A place's usual value for each month, next to one year's months (the latest by default). For questions about one year or the yearly cycle.",
@@ -94,12 +140,18 @@ export const monthlyTool = tool(
   },
 );
 
-export const extremesTool = tool(safe(({ place }: { place: string }) => extremes(place)), {
-  name: "daily_extremes",
-  description:
-    "Heatwaves, hot nights, heavy rain and dry spells from a daily station record (Indian places only): first decade against last decade, and the trend.",
-  schema: z.object({ place }),
-});
+export const extremesTool = tool(
+  safe(async ({ place }: { place: string }) => {
+    await lookAt(place, "Reading its daily weather station");
+    return extremes(place);
+  }),
+  {
+    name: "daily_extremes",
+    description:
+      "Heatwaves, hot nights, heavy rain and dry spells from a daily station record (Indian places only): first decade against last decade, and the trend.",
+    schema: z.object({ place }),
+  },
+);
 
 /** Changes the browser applies: the chat panel reads this tool's output. */
 export const showTool = tool(safe(viewChange), {
@@ -112,12 +164,15 @@ export const showTool = tool(safe(viewChange), {
 /* ------------------------------------------------------------------ */
 /* Research: past the app's ready-made records                         */
 
-const areaPlace = z.string().nullish().describe("Any place name on Earth (a city, district, state, country, river basin) or a catalog id");
+const areaPlace = z
+  .string()
+  .nullish()
+  .describe("Any place name on Earth (a city, district, state, country) or a catalog id. With box: the area's name, shown on the globe (\"Tigris–Euphrates basin\").");
 const box = z
   .array(z.number())
   .length(4)
   .nullish()
-  .describe("Instead of a place: [west, south, east, north] in degrees (east longitude and north latitude positive). Use it for custom areas.");
+  .describe("Instead of a place: [west, south, east, north] in degrees (east longitude and north latitude positive). Use it for custom areas and natural regions (river basins, seas, deserts), and always name it in place.");
 const months = z.array(z.number().int().min(1).max(12)).nullish().describe("Custom season as month numbers, e.g. [6,7,8,9]. Overrides season.");
 
 export const waterStorageTool = tool(safe(waterStorage), {
@@ -159,6 +214,56 @@ export const scanRegionTool = tool(safe(scanRegion), {
     top: z.number().int().min(1).max(10).nullish().describe("How many fastest rising and falling cells to list (default 5)"),
     nameCells: z.boolean().nullish().describe("Look up place names for the listed cells (default true; false is faster)"),
   }),
+});
+
+/* ------------------------------------------------------------------ */
+/* Satellite maps: any NASA GIBS layer, on the globe and measured      */
+
+const SAT_LAYERS = `Good layers (ids):
+plants: MODIS_Terra_L3_NDVI_Monthly (NDVI 0–1, 2000–now), MODIS_Terra_L3_EVI_Monthly
+ground heat: MODIS_Terra_L3_Land_Surface_Temp_Monthly_Day / _Night (°C, 2000–now)
+snow: MODIS_Terra_L3_Snow_Cover_Monthly_Average_Pct (%)
+sea heat: GHRSST_L4_MUR_Sea_Surface_Temperature (daily), MODIS_Aqua_L3_SST_Thermal_4km_Day_Monthly
+ocean colour: MODIS_Aqua_L2_Chlorophyll_A (algae, blooms; daily, cloud gaps)
+sea ice: GHRSST_L4_MUR_Sea_Ice_Concentration (daily, %)
+rain: IMERG_Precipitation_Rate (daily), MERRA2_Precipitation_Bias_Corrected_Monthly
+soil water: SMAP_L4_Analyzed_Root_Zone_Soil_Moisture (daily, 2015–now)
+haze, dust, smoke: MODIS_Combined_Value_Added_AOD (daily), MERRA2_Total_Aerosol_Optical_Thickness_550nm_Extinction_Monthly
+air pollution: OMI_Nitrogen_Dioxide_Tropo_Column (daily), TEMPO_L3_NO2_Vertical_Column_Troposphere (North America, hourly)
+air temperature: MERRA2_2m_Air_Temperature_Monthly
+city lights / growth of cities: VIIRS_Black_Marble with date 2016 and compareDate 2012 (the only cloud-free yearly night maps; show_satellite_map reads the lit area of each, so give the change in lit area; there is no longer night-light record to trend)
+fires and burn scars: MODIS_Terra_CorrectedReflectance_Bands721 (burn scars dark red, show only), GOES-East_ABI_FireTemp (the Americas, live)
+true colour photo: MODIS_Terra_CorrectedReflectance_TrueColor, VIIRS_SNPP_CorrectedReflectance_TrueColor
+For anything else (ozone, CO, SO2, salinity, clouds, water vapour, floods, evapotranspiration…) use find_satellite_layers.`;
+
+const satLayer = z.string().describe("GIBS layer id, e.g. MODIS_Terra_L3_NDVI_Monthly");
+
+export const findSatelliteLayersTool = tool(safe(findSatelliteLayers), {
+  name: "find_satellite_layers",
+  description: `Search NASA's live catalog of about 1,000 satellite map layers (GIBS: MODIS, VIIRS, GPM, SMAP, GHRSST, MERRA-2, AIRS, OMI, TEMPO…) for a measure. Returns layer ids, how often each is made, dates covered, and whether it can be measured.\n${SAT_LAYERS}`,
+  schema: z.object({
+    search: z.string().describe('What to look for, e.g. "chlorophyll", "sea ice", "nitrogen dioxide monthly"'),
+    max: z.number().int().min(1).max(30).nullish(),
+  }),
+});
+
+export const showSatelliteMapTool = tool(safe(showSatelliteMap), {
+  name: "show_satellite_map",
+  description: `Put a NASA satellite map on the globe for the person to see, framed on a place or area, for one date, or two dates split left and right (compareDate is shown on the left). Also reads the map's area average for those dates. Use it in EVERY answer about a place's land, water, air or ocean, so the globe shows the evidence, not just an outline: the map that best shows the answer (e.g. NDVI for vegetation, land surface temperature for heat, AOD for haze, night lights for cities).\n${SAT_LAYERS}`,
+  schema: z.object({
+    layer: satLayer,
+    place: areaPlace,
+    box,
+    date: z.string().nullish().describe("2024, 2024-07 or 2024-07-15; omit for the latest"),
+    compareDate: z.string().nullish().describe("An earlier date to split against, e.g. 2004-07 (same month is fairest)"),
+    wholeEarth: z.boolean().nullish().describe("Draw the map over the whole Earth instead of just around the place"),
+  }),
+});
+
+export const measureSatelliteTool = tool(safe(measureSatellite), {
+  name: "measure_satellite",
+  description: `Measure ANY NASA satellite map layer over ANY place or area, year by year, and test the trend (Mann-Kendall, Sen's slope): reads the map tiles back into numbers, averages the area, and tests every grid cell, drawing a heat map of where it is rising and falling on the globe. Use it for vegetation/greening/browning (NDVI), ground heat, snow cover, sea surface temperature, chlorophyll, soil moisture, aerosols, NO2 and more, anywhere: never say data is unavailable before trying it. Pick months for a season (e.g. [6,7,8] for northern summer, the growing season for crops). Takes 3–20 s.\n${SAT_LAYERS}`,
+  schema: z.object({ layer: satLayer, place: areaPlace, box, months, from: year, to: year }),
 });
 
 export const calculateTool = tool(safe(calculate), {
@@ -205,6 +310,9 @@ export const TOOLS = [
   nasaPowerTool,
   scanRegionTool,
   powerParametersTool,
+  findSatelliteLayersTool,
+  showSatelliteMapTool,
+  measureSatelliteTool,
   webSearchTool,
   calculateTool,
   showTool,

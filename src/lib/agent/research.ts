@@ -9,13 +9,20 @@ import { findPlace, shapeOf } from "../live";
 import type { Region } from "../regions";
 import { WHOLE_YEAR, annualize, seasonsFor, trend, within, type Month, type Season, type Trend, type YearValue } from "../series";
 import { MIN_SPAN, r3, resolvePlace } from "./data";
+import { deg, focusOn, roundBox, toGlobe } from "./globe";
 import { GRACE_MIN_SIDE, areaKm2, areaMean, graceBox, graceCells, graceYearly } from "./grace";
 import { POWER_FIRST, POWER_LAST, powerAtPoints, powerGrid, type Box } from "./power";
-import type { Series } from "./view";
+import type { GlobeGrid, Series } from "./view";
 
-const chance = (p: number) => (p < 0.001 ? "under 0.1%" : `${r3(p * 100)}%`);
+export const chance = (p: number) => (p < 0.001 ? "under 0.1%" : `${r3(p * 100)}%`);
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const toSeries = (s: YearValue[]): Series => s.map((d) => [d.year, r3(d.value)]);
+export const toSeries = (s: YearValue[]): Series => s.map((d) => [d.year, r3(d.value)]);
+
+const focus = (where: { name: string; box: Box }, what: string) => focusOn(where.name, where.box, what);
+
+/** Each cell's trend for the globe: [lat, lon, change per decade, significant 1/0]. */
+const gridCells = (cells: { lat: number; lon: number; t: Trend }[]): GlobeGrid["cells"] =>
+  cells.map((c) => [deg(c.lat), deg(c.lon), r3(c.t.slopePerDecade), c.t.significant ? 1 : 0]);
 
 /* ------------------------------------------------------------------ */
 /* Where                                                               */
@@ -47,7 +54,7 @@ function gridPoints([w, s, e, n]: Box, k: number): [number, number][] {
 }
 
 /** A place name or a box, as an area with an outline box. */
-async function area({ place, box }: AreaArgs): Promise<Area> {
+export async function area({ place, box }: AreaArgs): Promise<Area> {
   if (box?.length === 4) {
     const [w, s, e, n] = box;
     if (!(e > w && n > s)) throw new Error("box is [west, south, east, north] with east > west and north > south.");
@@ -70,8 +77,6 @@ async function area({ place, box }: AreaArgs): Promise<Area> {
 }
 
 /** Degrees to 0.01° (about 1 km). Not r3: 3 significant figures turns −122.5° into −123°, 45 km off. */
-const deg = (v: number) => Number(v.toFixed(2));
-const roundBox = (b: Box) => b.map(deg) as Box;
 
 /** Keep grid cells inside the place's outline; keep all when too few fall inside (small places, coarse grids). */
 function clipTo<C extends { lat: number; lon: number }>(cells: C[], where: Area, min: number): { cells: C[]; clipped: boolean } {
@@ -123,7 +128,7 @@ function shortWindow(yearly: YearValue[]) {
 }
 
 /** The test result as numbers the model can quote. An anomaly record (GRACE) averages near zero, so a % change means nothing there. */
-function verdict(t: Trend, unit: string, anomaly = false) {
+export function verdict(t: Trend, unit: string, anomaly = false) {
   return {
     trend: t.significant ? (t.slopePerDecade > 0 ? "rising" : "falling") : "no clear trend",
     significant: t.significant,
@@ -149,6 +154,7 @@ function verdict(t: Trend, unit: string, anomaly = false) {
 
 export async function waterStorage(a: AreaArgs & { from?: number | null; to?: number | null }) {
   const where = await area(a);
+  focus(where, "Weighing its water with GRACE satellites");
   const box = graceBox(where.box);
   const g = await graceCells(box);
   const { months, source } = g;
@@ -157,6 +163,23 @@ export async function waterStorage(a: AreaArgs & { from?: number | null; to?: nu
   const monthly = areaMean(cells, months);
   const yearly = clip(graceYearly(monthly), a.from, a.to);
   const t = trend(yearly);
+  if (t) {
+    const each = cells.flatMap((c) => {
+      const ct = trend(clip(graceYearly(areaMean([c], months)), a.from, a.to));
+      return ct ? [{ lat: c.lat, lon: c.lon, t: ct }] : [];
+    });
+    toGlobe({
+      type: "grid",
+      name: where.name,
+      title: "Water stored on land",
+      units: "mm",
+      parameter: WATER_STORAGE,
+      box: roundBox(box),
+      step: [1, 1],
+      years: [t.firstYear, t.lastYear],
+      cells: gridCells(each),
+    });
+  }
   const km2 = areaKm2(cells);
   const last = monthly[monthly.length - 1];
   const sameMonth = monthly.filter((m) => m.month.slice(5) === last.month.slice(5));
@@ -201,6 +224,7 @@ export async function waterStorage(a: AreaArgs & { from?: number | null; to?: nu
 
 export async function nasaPower(a: AreaArgs & WhenArgs & { parameters: string[] }) {
   const where = await area(a);
+  focus(where, "Reading NASA climate records");
   const season = pickSeason(a.season, a.months);
   const params = [...new Set(a.parameters.map((p) => p.trim().toUpperCase()))];
   const data = await powerAtPoints(where.points, params);
@@ -254,7 +278,7 @@ const geoCache = new Map<string, Promise<string>>();
 let lastGeo = 0;
 
 /** A cell's district and state (OpenStreetMap), one request a second as Nominatim asks. */
-function nameOf(lat: number, lon: number): Promise<string> {
+export function nameOf(lat: number, lon: number): Promise<string> {
   const key = `${lat.toFixed(2)},${lon.toFixed(2)}`;
   let p = geoCache.get(key);
   if (!p) {
@@ -276,15 +300,31 @@ function nameOf(lat: number, lon: number): Promise<string> {
   return p;
 }
 
+/** The grid spacing: the smallest gap between distinct coordinates (1° when there is only one). */
+export function spacing(v: number[]): number {
+  const u = [...new Set(v.map((x) => Math.round(x * 1000) / 1000))].sort((a, b) => a - b);
+  let best = Infinity;
+  for (let i = 1; i < u.length; i++) best = Math.min(best, u[i] - u[i - 1]);
+  return Number.isFinite(best) ? Number(best.toFixed(3)) : 1;
+}
+
 const SECTORS = [
   ["south-west", "south", "south-east"],
   ["west", "centre", "east"],
   ["north-west", "north", "north-east"],
 ];
 
-export async function scanRegion(a: AreaArgs & WhenArgs & { parameter: string; top?: number | null; nameCells?: boolean | null }) {
+export async function scanRegion(
+  a: AreaArgs &
+    WhenArgs & {
+      parameter: string;
+      top?: number | null;
+      nameCells?: boolean | null;
+    },
+) {
   const where = await area(a);
   const param = a.parameter.trim().toUpperCase();
+  focus(where, "Testing every grid cell for a trend");
   const top = Math.min(Math.max(a.top ?? 5, 1), 10);
   const [w, s, e, n] = where.box;
   const grace = param === WATER_STORAGE;
@@ -336,6 +376,18 @@ export async function scanRegion(a: AreaArgs & WhenArgs & { parameter: string; t
   if (!cells.length) throw new Error(`No usable grid cells in ${where.name}.`);
 
   const whole = trend(meanSeries);
+  toGlobe({
+    type: "grid",
+    name: where.name,
+    title: name,
+    units,
+    parameter: param,
+    box: roundBox(box),
+    step: [spacing(cells.map((c) => c.lon)), spacing(cells.map((c) => c.lat))],
+    years: [cells[0].t.firstYear, cells[0].t.lastYear],
+    season: season.id === WHOLE_YEAR.id ? undefined : season.label,
+    cells: gridCells(cells),
+  });
   const sig = cells.filter((c) => c.t.significant);
   const rising = sig.filter((c) => c.t.slopePerDecade > 0);
   const falling = sig.filter((c) => c.t.slopePerDecade < 0);
