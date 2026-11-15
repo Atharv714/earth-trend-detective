@@ -1,6 +1,7 @@
 """
 Download the speech-to-text models, so the demo runs offline:
   * whisper.cpp large-v3-turbo (Metal / CUDA)   * Whisper large-v3-turbo for faster-whisper (the fallback)
+  * the Piper voice that speaks answers
 
     .venv/Scripts/python prewarm.py            (Windows)
     .venv/bin/python prewarm.py                (macOS / Linux)
@@ -14,6 +15,24 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 MODELS = HERE / "models"
+
+PIPER_BASE = "https://huggingface.co/rhasspy/piper-voices/resolve/main"
+
+
+def download_piper(voice: str) -> None:
+    lang, rest = voice.split("_", 1)
+    region = f"{lang}_{rest.split('-')[0]}"
+    name, quality = rest.split("-")[1], rest.split("-")[2]
+    out = MODELS / "piper"
+    out.mkdir(parents=True, exist_ok=True)
+    for ext in (".onnx", ".onnx.json"):
+        dst = out / f"{voice}{ext}"
+        if dst.exists():
+            continue
+        url = f"{PIPER_BASE}/{lang}/{region}/{name}/{quality}/{voice}{ext}"
+        print("downloading", url)
+        urllib.request.urlretrieve(url, dst)
+
 
 WHISPERCPP_RELEASE = "v1.9.0"  # last release with prebuilt Windows CUDA binaries
 
@@ -51,6 +70,8 @@ def main() -> None:
 
     import shutil
 
+    download_piper(os.environ.get("PIPER_VOICE", "en_US-lessac-medium"))
+    print("piper voice ok")
     download_whispercpp()
     print("whisper.cpp ok")
     if shutil.which("whisper-server") or list((MODELS / "whispercpp").glob("bin/**/whisper-server*")):

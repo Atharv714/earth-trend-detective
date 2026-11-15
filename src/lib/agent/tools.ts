@@ -202,7 +202,7 @@ POWER has about 280 monthly parameters in all: for anything not listed here, fin
 
 export const scanRegionTool = tool(safe(scanRegion), {
   name: "scan_region",
-  description: `Map a variable across an area on a grid and find WHERE inside it things are changing: tests the trend in every grid cell (POWER ~0.5°, or GRACE 1°), then reports the whole-area trend, how many cells rise or fall significantly, a 3×3 sector breakdown (north-west … south-east), and the fastest rising and falling cells with nearby place names. Use it for "which parts of X…", hotspots, and spatial patterns. Parameter: any NASA POWER code (see nasa_power), or ${WATER_STORAGE} for GRACE groundwater/water storage. Areas up to 30° a side (any size for ${WATER_STORAGE}). Takes 5–20 s.`,
+  description: `Map a variable across an area on a grid and find WHERE inside it things are changing: tests the trend in every grid cell (POWER ~0.5°, or GRACE 1°), then reports the whole-area trend, how many cells rise or fall significantly, a 3×3 sector breakdown (north-west … south-east), and the fastest rising and falling cells with nearby place names. Use it for "which parts of X…", hotspots, and spatial patterns. Parameter: any NASA POWER code (see nasa_power), or ${WATER_STORAGE} for GRACE groundwater/water storage. Areas up to 30° a side (any size for ${WATER_STORAGE}). Only NASA POWER codes, not satellite layer ids: measure_satellite maps those. Takes 5–20 s.`,
   schema: z.object({
     place: areaPlace,
     box,
@@ -231,10 +231,11 @@ soil water: SMAP_L4_Analyzed_Root_Zone_Soil_Moisture (daily, 2015–now)
 haze, dust, smoke: MODIS_Combined_Value_Added_AOD (daily), MERRA2_Total_Aerosol_Optical_Thickness_550nm_Extinction_Monthly
 air pollution: OMI_Nitrogen_Dioxide_Tropo_Column (daily), TEMPO_L3_NO2_Vertical_Column_Troposphere (North America, hourly)
 air temperature: MERRA2_2m_Air_Temperature_Monthly
+ozone layer, ozone hole: OMI_Ozone_DOAS_Total_Column (daily, DU, total ozone overhead; the Antarctic hole is September–October), MERRA2_Ozone_Mixing_Ratio_50hPa_Monthly (stratosphere)
 city lights / growth of cities: VIIRS_Black_Marble with date 2016 and compareDate 2012 (the only cloud-free yearly night maps; show_satellite_map reads the lit area of each, so give the change in lit area; there is no longer night-light record to trend)
 fires and burn scars: MODIS_Terra_CorrectedReflectance_Bands721 (burn scars dark red, show only), GOES-East_ABI_FireTemp (the Americas, live)
 true colour photo: MODIS_Terra_CorrectedReflectance_TrueColor, VIIRS_SNPP_CorrectedReflectance_TrueColor
-For anything else (ozone, CO, SO2, salinity, clouds, water vapour, floods, evapotranspiration…) use find_satellite_layers.`;
+For anything else (CO, SO2, salinity, clouds, water vapour, floods, evapotranspiration…) use find_satellite_layers.`;
 
 const satLayer = z.string().describe("GIBS layer id, e.g. MODIS_Terra_L3_NDVI_Monthly");
 

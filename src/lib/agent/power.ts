@@ -35,7 +35,24 @@ function toMonths(rec: Record<string, number> | undefined): Month[] {
   return out.sort((a, b) => a.year - b.year || a.month - b.month);
 }
 
-async function getJson(url: string): Promise<PowerJson> {
+/**
+ * Answers kept by URL for as long as the server runs, so a question asked again
+ * (a rehearsed demo) skips POWER's slow replies. Failures are not kept.
+ */
+const jsonCache = new Map<string, Promise<PowerJson>>();
+const JSON_CACHE_MAX = 500;
+
+function getJson(url: string): Promise<PowerJson> {
+  const hit = jsonCache.get(url);
+  if (hit) return hit;
+  const p = fetchJson(url);
+  p.catch(() => jsonCache.delete(url));
+  if (jsonCache.size >= JSON_CACHE_MAX) jsonCache.delete(jsonCache.keys().next().value!);
+  jsonCache.set(url, p);
+  return p;
+}
+
+async function fetchJson(url: string): Promise<PowerJson> {
   const res = await fetch(url);
   const json = (await res.json().catch(() => ({}))) as PowerJson;
   if (!res.ok) {

@@ -1,9 +1,9 @@
 import type { NextRequest } from "next/server";
 
-// Same-origin proxy to the local speech-to-text service (voice/server.py).
+// Same-origin proxy to the local voice service (speech-to-text and Piper text-to-speech) (voice/server.py).
 // Keeps the browser on one origin and turns "service not running" into a clear JSON error.
 const VOICE_URL = process.env.VOICE_URL ?? "http://127.0.0.1:8765";
-const ALLOWED = /^(health|stt)$/;
+const ALLOWED = /^(health|stt|tts)$/;
 
 async function forward(req: NextRequest, ctx: { params: Promise<{ path: string[] }> }) {
   const { path } = await ctx.params;

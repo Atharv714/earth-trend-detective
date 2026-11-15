@@ -11,8 +11,10 @@ import type { CheckData, PlanData, View, ViewChange } from "@/lib/agent/view";
 import { probeOf, type Probe } from "@/lib/probe";
 import { routeText } from "@/lib/router/client";
 import { isEmpty, type UiPatch } from "@/lib/router/types";
+import { HeadsetButton } from "@/lib/voice/headset";
 import { Mic, transcribe } from "@/lib/voice/mic";
-import { Answer } from "./blocks";
+import { speak, stopSpeaking, unlockSpeech } from "@/lib/voice/speak";
+import { Answer, pieces } from "./blocks";
 import { Check, Plan, Trail, chartsOf, parseOutput, toolParts, type ChartSpec } from "./parts";
 
 const TRANSPORT = new DefaultChatTransport({ api: "/api/chat" });
@@ -150,12 +152,35 @@ export function Detective({ open, view, onShow, onProbe, onApply, onActivity, on
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => onProbe(probe), [probeKey, onProbe]);
 
+  // A spoken question gets its answer spoken: the verdict's title and its one-line
+  // finding, not the whole answer (the screen has the rest).
+  const speakReply = useRef(false);
+  const lastStatus = useRef(status);
+  useEffect(() => {
+    const was = lastStatus.current;
+    lastStatus.current = status;
+    if (status === "ready" && (was === "streaming" || was === "submitted") && speakReply.current) {
+      speakReply.current = false;
+      const m = messages.at(-1);
+      if (m?.role !== "assistant") return;
+      const all = m.parts.map((p) => (p.type === "text" ? p.text : "")).join("");
+      const verdict = pieces(all).find((p) => p.kind === "viz" && p.spec?.type === "verdict");
+      const v = verdict?.kind === "viz" ? verdict.spec : null;
+      if (v) return void speak(`${String(v.title ?? "")}. ${String(v.text ?? "")}`);
+      // No verdict (a greeting or a method question): its first two sentences.
+      const plain = pieces(all).filter((p) => p.kind === "md").map((p) => (p.kind === "md" ? p.text : "")).join(" ");
+      void speak(plain.split(/(?<=[.!?])\s+/).slice(0, 2).join(" "));
+    }
+    if (status === "error") speakReply.current = false;
+  }, [status, messages]);
+
   // Typed questions go straight to the detective. Only speech goes through the
   // router, which can turn "fly to Kerala" into a screen change with no chat turn.
   const send = async (q: string, spoken = false) => {
     const t = q.trim();
     if (!t || busy) return;
     if (error) clearError();
+    speakReply.current = spoken;
     pinned.current = true;
     setText("");
     if (spoken) setRouting(t);
@@ -165,7 +190,13 @@ export function Detective({ open, view, onShow, onProbe, onApply, onActivity, on
       const r = spoken ? await routeText(t, view) : null;
       // A screen change happens on the globe and stays out of the chat. If it
       // can't be done (a place that can't be found), the detective takes it.
-      if (r && r.route === "ui" && !isEmpty(r.patch) && !(await onApply(r.patch)).failed) return;
+      if (r && r.route === "ui" && !isEmpty(r.patch)) {
+        const done = await onApply(r.patch);
+        if (!done.failed) {
+          speakReply.current = false;
+          return void speak(done.said);
+        }
+      }
       let now = view;
       if (r && r.route === "both" && !isEmpty(r.patch)) {
         const done = await onApply(r.patch);
@@ -189,6 +220,7 @@ export function Detective({ open, view, onShow, onProbe, onApply, onActivity, on
   const take = useRef<{ stop: () => void } | null>(null);
   const listen = useCallback(async (hold: boolean) => {
     if (take.current) return take.current.stop();
+    stopSpeaking();
     setVoiceError(null);
     try {
       mic.current ??= new Mic();
@@ -233,6 +265,37 @@ export function Detective({ open, view, onShow, onProbe, onApply, onActivity, on
   }, [listen, stopListening]);
 
   useEffect(() => () => mic.current?.close(), []);
+
+  // Headset button (CMF Neckband Pro, AirPods, any Bluetooth headset): press to talk, press
+  // again to send; a press during an answer stops it and listens. It arms on the first click or
+  // key on the page (autoplay rules), then works even when the browser is not in front.
+  const press = useRef(() => {});
+  useEffect(() => {
+    press.current = () => {
+      if (!take.current && busy) void stop();
+      void listen(true);
+    };
+  });
+  const headset = useRef<HeadsetButton | null>(null);
+  useEffect(() => {
+    const h = (headset.current = new HeadsetButton());
+    h.onPress = () => press.current();
+    const arm = () => {
+      unlockSpeech();
+      void h.arm();
+    };
+    const key = (e: globalThis.KeyboardEvent) => {
+      if (!h.key(e)) arm();
+    };
+    window.addEventListener("pointerdown", arm);
+    window.addEventListener("keydown", key);
+    return () => {
+      window.removeEventListener("pointerdown", arm);
+      window.removeEventListener("keydown", key);
+      h.disarm();
+    };
+  }, []);
+  useEffect(() => headset.current?.setMicActive(voice === "listen"), [voice]);
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -351,7 +414,7 @@ export function Detective({ open, view, onShow, onProbe, onApply, onActivity, on
           disabled={voice === "hear"}
           onClick={() => void listen(false)}
           aria-label={voice === "listen" ? "Stop listening" : "Speak"}
-          title={voice === "listen" ? "Stop listening" : "Speak (or hold Space)"}
+          title={voice === "listen" ? "Stop listening" : "Speak (or hold Space, or press your headset button)"}
         >
           <svg viewBox="0 0 16 16" aria-hidden>
             <rect x="5.75" y="1.75" width="4.5" height="8" rx="2.25" />

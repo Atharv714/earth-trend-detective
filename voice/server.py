@@ -25,7 +25,7 @@ import wave
 from pathlib import Path
 
 import numpy as np
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.concurrency import run_in_threadpool
 
@@ -343,14 +343,82 @@ STT_ENGINE = os.environ.get("STT_ENGINE", "auto")  # auto | whispercpp | faster-
 stt = WhisperCpp() if (STT_ENGINE == "whispercpp" or (STT_ENGINE == "auto" and WhisperCpp.available())) else Stt()
 
 # ---------------------------------------------------------------------------
+# Text to speech: Piper (taken from the voice branch, Medhu)
+# ---------------------------------------------------------------------------
+
+PIPER_VOICE = os.environ.get("PIPER_VOICE", "en_US-lessac-medium")
+
+
+def _tts_worker(conn, voice_path: str) -> None:
+    """Separate process: Piper's ONNX threads run 5-10x slower when they share a process with CUDA Whisper."""
+    from piper import PiperVoice
+
+    no_throttle()
+    voice = PiperVoice.load(voice_path)
+    conn.send(("ready", voice.config.sample_rate))
+    while True:
+        msg = conn.recv()
+        if msg is None:
+            return
+        text, length_scale = msg
+        buf = io.BytesIO()
+        try:
+            with wave.open(buf, "wb") as wav:
+                if hasattr(voice, "synthesize_wav"):  # piper-tts >= 1.3
+                    from piper import SynthesisConfig
+
+                    voice.synthesize_wav(text, wav, syn_config=SynthesisConfig(length_scale=length_scale))
+                else:
+                    voice.synthesize(text, wav, length_scale=length_scale)
+            conn.send(("ok", buf.getvalue()))
+        except Exception as e:  # keep the worker alive
+            conn.send(("error", str(e)))
+
+
+class Tts:
+    def __init__(self) -> None:
+        self.conn = None
+        self.proc = None
+        self.rate = 22050
+        self.lock = threading.Lock()
+
+    def load(self) -> None:
+        import multiprocessing as mp
+
+        path = MODELS / "piper" / f"{PIPER_VOICE}.onnx"
+        if not path.exists():
+            from prewarm import download_piper
+
+            download_piper(PIPER_VOICE)
+        ctx = mp.get_context("spawn")
+        parent, child = ctx.Pipe()
+        self.proc = ctx.Process(target=_tts_worker, args=(child, str(path)), daemon=True)
+        self.proc.start()
+        status, rate = parent.recv()
+        self.conn, self.rate = parent, rate
+        self.synth("Ready.")
+        log.info("Piper ready: %s @ %d Hz (worker pid %s)", PIPER_VOICE, self.rate, self.proc.pid)
+
+    def synth(self, text: str, length_scale: float | None = None) -> bytes:
+        with self.lock:
+            self.conn.send((text, length_scale))
+            status, data = self.conn.recv()
+        if status != "ok":
+            raise RuntimeError(data)
+        return data
+
+
+tts = Tts()
+
+# ---------------------------------------------------------------------------
 # App
 # ---------------------------------------------------------------------------
 
-app = FastAPI(title="Earth Trend Detective speech-to-text")
+app = FastAPI(title="Earth Trend Detective voice service")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"],
-                   expose_headers=["X-Audio-S"])
+                   expose_headers=["X-Audio-S", "X-Synth-Ms"])
 
-state = {"ready": False, "error": None}
+state = {"ready": False, "error": None, "tts": False, "tts_error": None}
 loaded = threading.Event()  # set once loading ends, ready or failed
 
 
@@ -374,12 +442,23 @@ def _startup() -> None:
         finally:
             loaded.set()
 
+    def load_tts() -> None:
+        # Its own thread: a missing voice never stops speech-to-text, the browser voice stands in.
+        try:
+            tts.load()
+            state["tts"] = True
+        except Exception as e:
+            log.exception("Piper failed to start; answers use the browser voice")
+            state["tts_error"] = str(e)
+
     threading.Thread(target=load, daemon=True).start()
+    threading.Thread(target=load_tts, daemon=True).start()
 
 
 @app.get("/health")
 def health() -> dict:
-    return {"ready": state["ready"], "error": state["error"], "stt": stt.info}
+    return {"ready": state["ready"], "error": state["error"], "stt": stt.info,
+            "tts": PIPER_VOICE if state["tts"] else None, "tts_error": state["tts_error"]}
 
 
 async def _need_ready() -> None:
@@ -407,6 +486,20 @@ async def transcribe(req: Request) -> dict:
         return {"text": "", "rejected": "too short", "ms": 0, "audio_s": len(audio) / 16000}
     audio = audio[: 16000 * 30]  # commands are short; cap at 30 s
     return await run_in_threadpool(stt.transcribe, audio, req.query_params.get("prompt"))
+
+
+@app.post("/tts")
+async def speak(req: Request) -> Response:
+    if not state["tts"]:
+        raise HTTPException(503, state["tts_error"] or "The voice is still loading")
+    data = await req.json()
+    text = str(data.get("text", "")).strip()[:1000]
+    if not text:
+        raise HTTPException(400, "Empty text")
+    t0 = time.perf_counter()
+    wav = await run_in_threadpool(tts.synth, text, data.get("lengthScale"))
+    ms = round((time.perf_counter() - t0) * 1000)
+    return Response(wav, media_type="audio/wav", headers={"X-Synth-Ms": str(ms), "Cache-Control": "no-store"})
 
 
 if __name__ == "__main__":

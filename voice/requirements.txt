@@ -1,6 +1,7 @@
 faster-whisper>=1.1
 fastapi>=0.110
 uvicorn[standard]>=0.29
+piper-tts>=1.2
 numpy>=1.26
 # CUDA runtime for CTranslate2 on Windows/Linux with an NVIDIA GPU (skipped on macOS)
 nvidia-cublas-cu12; sys_platform != "darwin"

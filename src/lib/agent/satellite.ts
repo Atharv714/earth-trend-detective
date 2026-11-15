@@ -440,8 +440,30 @@ function tiling(l: SatLayer, [w, s, e, n]: Box, px: number, maxTiles: number): T
 const tileUrl = (l: SatLayer, time: string | undefined, z: number, row: number, col: number) =>
   `${WMTS}/${l.id}/default/${time ? `${time}/` : ""}${l.matrixSet}/${z}/${row}/${col}.${l.ext}`;
 
+/**
+ * Decoded tiles kept by URL, so a repeated question (a rehearsed demo) reads no tile twice.
+ * A tile is 256 KB, so the cap holds about 100 MB. Failures are not kept.
+ */
+const tileCache = new Map<string, Promise<Float32Array | null>>();
+const TILE_CACHE_MAX = 400;
+
 /** One tile's values (NaN where there is no data), or null when the tile is missing. */
-async function tileValues(l: SatLayer, sc: Scale, time: string | undefined, z: number, row: number, col: number): Promise<Float32Array | null> {
+function tileValues(l: SatLayer, sc: Scale, time: string | undefined, z: number, row: number, col: number): Promise<Float32Array | null> {
+  const key = tileUrl(l, time, z, row, col);
+  const hit = tileCache.get(key);
+  if (hit) {
+    tileCache.delete(key); // most recently used goes last
+    tileCache.set(key, hit);
+    return hit;
+  }
+  const p = fetchTile(l, sc, time, z, row, col);
+  p.catch(() => tileCache.delete(key));
+  if (tileCache.size >= TILE_CACHE_MAX) tileCache.delete(tileCache.keys().next().value!);
+  tileCache.set(key, p);
+  return p;
+}
+
+async function fetchTile(l: SatLayer, sc: Scale, time: string | undefined, z: number, row: number, col: number): Promise<Float32Array | null> {
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const res = await fetch(tileUrl(l, time, z, row, col), { signal: AbortSignal.timeout(20_000) });
@@ -681,7 +703,11 @@ export async function showSatelliteMap(a: AreaArgs & { layer: string; date?: str
 /* ------------------------------------------------------------------ */
 /* measure_satellite                                                   */
 
-const MAX_REQUESTS = 360;
+// Tiles one measurement may fetch. Each takes ~0.8 s from GIBS, so 160 at 32 at a time is ~5 s;
+// 360 at 24 took ~12 s per place, ~21 s for a two-city question (15 Nov). Over 26 years that
+// still reads 6 months a year, plenty for a trend.
+const MAX_REQUESTS = 160;
+const PARALLEL_TILES = 32;
 const MONTH = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 export async function measureSatellite(a: AreaArgs & { layer: string; months?: number[] | null; from?: number | null; to?: number | null }) {
@@ -733,7 +759,7 @@ export async function measureSatellite(a: AreaArgs & { layer: string; months?: n
   // Show the latest map while it reads.
   const latest = dates.at(-1);
   if (latest) showImagery(imagery(l, sc, where.name, padded(where.box), latest.time, dateLabel(l, latest.at)));
-  const readings = await pool(dates, 24, (d) => read(l, sc, sm, d.time).catch(() => null));
+  const readings = await pool(dates, PARALLEL_TILES, (d) => read(l, sc, sm, d.time).catch(() => null));
 
   // A date where most of the area is hidden (cloud, snow, gaps) would skew the mean: drop it.
   const best = Math.max(0, ...readings.map((r) => r?.covered ?? 0));

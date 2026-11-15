@@ -1,11 +1,13 @@
 // The detective as a LangGraph graph:
 //
-//   make_plan ──▶ investigate ◀──▶ tools     (one round = the model's tool calls, run together)
-//                     │
-//                     ▼
-//                  verify ──▶ end
+//   ┌─ make_plan ──▶ end
+//   └─ investigate ◀──▶ tools     (one round = the model's tool calls, run together)
+//          │
+//          ▼
+//       verify ──▶ end
 //
-// make_plan:   a quick structured call that sets the goal and steps (shown in the chat)
+// make_plan:   a quick structured call that sets the goal and steps (shown in the chat). It runs
+//              alongside the first round instead of before it, which saves its 3–5 s.
 // investigate: the model with the tools; loops until it has the evidence and answers (no step budget)
 // verify:      traces every number in the answer back to a tool result
 //
@@ -103,7 +105,9 @@ export function buildGraph() {
     // Prompt caching reuses the longest prefix already seen: tools, the fixed
     // instructions, then the conversation, which only grows. The situation
     // note is the same for every round of an answer, so it does not break it.
-    const messages = [new SystemMessage(DETECTIVE), new SystemMessage(situation(state.view, state.plan)), ...state.messages];
+    // The first round runs beside make_plan, so the plan in state is still the last question's.
+    const plan = sinceQuestion(state.messages).after.length ? state.plan : null;
+    const messages = [new SystemMessage(DETECTIVE), new SystemMessage(situation(state.view, plan)), ...state.messages];
     const reply = await withTools.invoke(messages, config);
     return { messages: [reply] };
   }
@@ -136,7 +140,8 @@ export function buildGraph() {
     .addNode("tools", toolNode)
     .addNode("verify", verify)
     .addEdge(START, "make_plan")
-    .addEdge("make_plan", "investigate")
+    .addEdge(START, "investigate")
+    .addEdge("make_plan", END)
     .addConditionalEdges("investigate", route, ["tools", "verify"])
     .addEdge("tools", "investigate")
     .addEdge("verify", END)
