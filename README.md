@@ -8,6 +8,12 @@ Pick any place on a 3D globe and ask a question: *is it getting hotter? drier? h
 
 ---
 
+## VIDEO DEMO
+
+https://github.com/user-attachments/assets/c1826852-191a-497b-8815-2b34b5a88944
+
+---
+
 ## ✨ What it does
 
 ### The five steps of the challenge, on one screen
@@ -168,6 +174,8 @@ docs/HANDOFF.md           Full technical notes
 | **Medhangshi Das (Leader)** | Backend APIs, voice assistant (Whisper + Piper) |
 
 Full technical notes are in [`docs/HANDOFF.md`](docs/HANDOFF.md).
+
+
 
 ## 📜 License
 
