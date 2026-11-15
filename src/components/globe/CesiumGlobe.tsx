@@ -490,6 +490,22 @@ export default function CesiumGlobe(props: Props) {
   const focusBox = focus?.box ?? null;
   const focusId = focus?.id ?? null;
   const aim = useRef<{ selected: Region | null; focusId: string | null; on: "place" | "probe" }>({ selected: null, focusId: null, on: "place" });
+  // Once you zoom, drag or turn the globe during an answer, the camera stops chasing the
+  // detective's new areas until the next question: it never pulls the view out of your hands.
+  const touched = useRef(false);
+  useEffect(() => {
+    if (busy) touched.current = false;
+  }, [busy]);
+  useEffect(() => {
+    if (!scene) return;
+    const canvas = scene.widget.scene.canvas;
+    const mine = () => (touched.current = true);
+    const events = ["pointerdown", "wheel", "touchstart"] as const;
+    for (const e of events) canvas.addEventListener(e, mine, { passive: true });
+    return () => {
+      for (const e of events) canvas.removeEventListener(e, mine);
+    };
+  }, [scene]);
   useEffect(() => {
     if (!scene) return;
     const { C, widget } = scene;
@@ -497,6 +513,11 @@ export default function CesiumGlobe(props: Props) {
     const canvas = widget.scene.canvas;
     // Whichever changed last wins: the open place, or the area the detective just started reading.
     const was = aim.current;
+    const followed = focusId !== was.focusId && !!focusId && was.focusId !== null;
+    if (followed && touched.current && selected === was.selected) {
+      was.focusId = focusId;
+      return;
+    }
     if (focusId !== was.focusId && focusId) was.on = "probe";
     else if (selected !== was.selected || !focusId) was.on = "place";
     was.selected = selected;

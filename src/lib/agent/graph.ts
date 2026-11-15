@@ -117,6 +117,8 @@ export function buildGraph() {
       ...state.messages.filter((m) => ToolMessage.isInstance(m)).map((m) => m.text),
       question?.text ?? "",
       JSON.stringify(state.view ?? {}),
+      // Resolutions the prompt tells the model to mention (prompts.ts): POWER's ~50 km grid, land surface temperature's ~1 km.
+      "50 km, 1 km",
     ];
     const result = traceNumbers(answer.text, sources);
     if (result.total) config.writer?.({ type: "check", id: `check-${randomUUID()}`, ...result });

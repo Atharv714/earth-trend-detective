@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Copied Cesium build (see next.config.ts), not our code.
     "public/cesium/**",
+    // bklit charts, added by `npx shadcn add @bklit/...` (components.json): library code, kept as shipped.
+    "src/components/charts/**",
   ]),
 ]);
 

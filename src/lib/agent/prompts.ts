@@ -79,8 +79,16 @@ Readers are students and the public, many with little time or attention. A wall 
 Visual blocks: a fenced code block with the language viz holding one JSON object. The chat draws it. Kinds:
 - {"type":"verdict","tone":"bad|good|mixed|neutral","title":"5-9 word answer","text":"one sentence why"}: always first.
 - {"type":"stats","items":[{"value":"−337","unit":"mm/decade","label":"Punjab water storage","tone":"bad"}]}: 2-4 headline numbers. tone: bad, good or neutral (for the place, not the sign). good (green) only for a change people clearly want (cleaner air, water coming back to a drying place); a cooling or a change that is not clearly a benefit is neutral, never good.
-- {"type":"chart","ids":["abcde"],"title":"..."}: yearly charts. Every tool result with a series carries a "chart" id (in nasa_power, one per parameter in results). Use those ids exactly; never invent one. Up to 3 ids in one block.
+- {"type":"chart","ids":["abcde"],"title":"..."}: one record's yearly chart with its trend line, one per id (stacked, not overlaid). Every tool result with a series carries a "chart" id (in nasa_power, one per parameter in results). Use those ids exactly; never invent one. Up to 3 ids in one block.
 - {"type":"bars","title":"...","unit":"mm/decade","tone":"bad","items":[{"label":"Haryana","value":-434},{"label":"Punjab","value":-337}]}: compare 3-8 places, seasons or variables in the same unit (two numbers belong in stats). tone colours the bars: bad, good or neutral, by what the numbers mean for people, not their sign; an item can override it.
+- {"type":"plot","chart":"line|area|scatter|bar|pie|radar","title":"...","unit":"°C", then either "ids":["abcde","fghij"],"names":["Delhi","Mumbai"] or "x":[...],"series":[{"name":"...","values":[...]}]}: any other chart you want. Pick the form that shows the point fastest:
+  - line: two to five records over the same years on one chart (two places, or a place against its region). Whenever records in the same unit are compared over time, use this, not a chart block. Pass tool chart ids so the values are NASA's own; names labels each id.
+  - area: one quantity building up or draining over time (water storage, ice extent).
+  - scatter: yearly values where the spread matters more than the path (noisy rain years).
+  - bar: compare labelled things (seasons, places, months) with x as the labels; several series draw grouped bars (Delhi and Mumbai, season by season). Use it instead of bars when there are two or more series.
+  - pie: shares of one whole (where a basin's water loss comes from); one series, values that add up.
+  - radar: one place or several across 3-8 different measures; each axis is scaled to its largest value, so units may differ.
+  x for line, area and scatter is years ("2004") or months ("2004-07"); other labels draw bars. Every value comes from a tool or calculate.
 - {"type":"meter","label":"Groundwater pumped vs refilled","value":156.36,"limit":100,"unit":"%","limitLabel":"refill rate","tone":"bad"}: one value against a limit or threshold.
 - {"type":"versus","left":{"title":"NASA model, whole state","tone":"good","points":["Snow depth +1.19 cm/decade"]},"right":{"title":"Chandra Basin study","tone":"bad","points":["Spring snow −42 mm/decade"]}}: two pieces of evidence that disagree or contrast.
 - {"type":"timeline","items":[{"when":"2009","text":"Subsoil Water Act delays paddy sowing"}]}: 2-5 events or policies, oldest first; "when" is a short date or year.
@@ -91,7 +99,7 @@ Shape of every answer with data:
 1. verdict block.
 2. stats block (when there are headline numbers).
 3. At most 3 sections, one per sub-question; merge or drop the rest (they can go in next). Each: a "### " heading that states the finding ("### Pumping, not rain, is draining it"), then at most 2 short bullets, then at most one visual block. Prefer a visual over a sentence wherever a number can be shown.
-Budget for the whole answer: at most 4 visual blocks between stats and details, and at most 4 charts across all chart blocks. Pick the ones that prove the verdict; leave context charts out. A number already in stats is not repeated in a bar or sentence.
+Budget for the whole answer: at most 4 visual blocks between stats and details, and at most 4 charts across all chart and plot blocks. Pick the ones that prove the verdict; leave context charts out. A number already in stats is not repeated in a bar or sentence.
 4. details block for caveats and method (not in the main text). Keep a caveat in the body only when without it the headline would mislead, in a few words.
 5. next block.
 

@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:is(.dark *));
+
 /* Tokens. One dark material over real space, one accent, quiet type. */
 :root {
   --space: #000005;
@@ -27,6 +29,76 @@
   --gutter: 16px;
 
   color-scheme: dark;
+
+  --chart-1: oklch(0.585 0.233 277.117);
+
+  --chart-2: oklch(0.852 0.199 91.936);
+
+  --chart-3: oklch(0.459 0.156 302.679);
+
+  --chart-4: oklch(0.56 0.021 213.5);
+
+  --chart-5: oklch(0 0 0);
+
+  --chart-positive: oklch(0.696 0.17 162.48);
+
+  --chart-negative: oklch(0.637 0.237 25.331);
+
+  --chart-background: oklch(1 0 0);
+
+  --chart-foreground: oklch(0.145 0.004 285);
+
+  --chart-foreground-muted: oklch(0.55 0.014 260);
+
+  --chart-line-primary: var(--chart-1);
+
+  --chart-line-secondary: var(--chart-2);
+
+  --chart-crosshair: oklch(0.4 0.1828 274.34);
+
+  --chart-grid: oklch(0.9 0 0);
+
+  --chart-brush-border: var(--chart-grid);
+
+  --chart-tooltip-background: var(--popover);
+
+  --chart-tooltip-foreground: var(--popover-foreground);
+
+  --chart-tooltip-muted: var(--muted-foreground);
+
+  --chart-marker-background: oklch(0.97 0.005 260);
+
+  --chart-marker-border: oklch(0.85 0.01 260);
+
+  --chart-marker-foreground: oklch(0.3 0.01 260);
+
+  --chart-label: oklch(0.45 0.01 260);
+
+  --chart-scale-mix: oklch(1 0 0);
+
+  --chart-scale-01: oklch(0.922 0 0);
+
+  --chart-scale-02: color-mix(in oklab, var(--chart-1) 35%, var(--chart-scale-mix));
+
+  --chart-scale-03: color-mix(in oklab, var(--chart-1) 55%, var(--chart-scale-mix));
+
+  --chart-scale-04: color-mix(in oklab, var(--chart-1) 78%, var(--chart-scale-mix));
+
+  --chart-scale-05: var(--chart-1);
+
+  --chart-scale-pattern-color: oklch(1 0 0);
+
+  --chart-indicator-color: oklch(0.21 0.006 285);
+
+  --chart-indicator-secondary-color: oklch(0.913 0 0);
+
+  --chart-marker-badge-background: oklch(0 0 0);
+
+  --chart-marker-badge-foreground: oklch(0.84 0 0);
+
+  --chart-segment-background: oklch(0.756 0 0 / 0.06);
+
+  --chart-segment-line: oklch(0.5 0 0 / 0.25);
 }
 
 * {
@@ -119,7 +191,6 @@ button {
   color: rgba(255, 255, 255, 0.7);
   font-size: 11px;
 }
-
 
 /* Panel */
 .panel {
@@ -2332,6 +2403,102 @@ button.bar-row:hover {
   font-size: 11px;
 }
 
+/* {"type":"plot"}: bklit charts (plot.tsx). */
+.viz-plot {
+  position: relative;
+}
+
+.viz-plot-round {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px 20px;
+}
+
+/* The key doubles as the readout: hovering the chart moves these numbers instead of a floating box. */
+.viz .viz-plot-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 11.5px;
+}
+
+.viz .viz-plot-key li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+}
+
+.viz .viz-plot-key li::before {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  content: "";
+}
+
+.viz .viz-plot-key span {
+  color: var(--label-2);
+}
+
+.viz .viz-plot-key b {
+  margin-left: auto;
+  padding-left: 12px;
+  color: var(--label);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.viz .viz-plot-key-col {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  gap: 3px;
+  min-width: 140px;
+}
+
+.viz-plot-readout {
+  margin-top: 4px;
+}
+
+.viz .viz-plot-at {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 4px;
+  font-size: 12px;
+}
+
+.viz-plot-at b {
+  color: var(--label);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.viz-plot-at span {
+  color: var(--label-3);
+  font-size: 11px;
+}
+
+/* The hovered year or name, sitting on the x axis under the crosshair. */
+.viz-pill {
+  display: block;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(44, 44, 50, 0.96);
+  color: var(--label);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
 .viz-loading {
   height: 48px;
   border-radius: 8px;
@@ -2348,11 +2515,10 @@ button.bar-row:hover {
 /* Verdict: the answer in one look */
 .viz-verdict {
   margin-top: 4px;
-  padding: 1px 0 1px 14px;
-  border-left: 3px solid var(--tone-c);
 }
 
 .viz-verdict-title {
+  color: var(--tone-c);
   font-family: var(--font-display);
   font-size: 18px;
   font-weight: 650;
@@ -3082,4 +3248,86 @@ button.bar-row:hover {
   stroke-width: 1.6;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+@theme inline {
+  --color-chart-line-primary: var(--chart-line-primary);
+  --color-chart-line-secondary: var(--chart-line-secondary);
+  --color-chart-brush-border: var(--chart-brush-border);
+  --color-chart-tooltip-background: var(--chart-tooltip-background);
+  --color-chart-tooltip-foreground: var(--chart-tooltip-foreground);
+  --color-chart-tooltip-muted: var(--chart-tooltip-muted);
+  --color-chart-scale-02: var(--chart-scale-02);
+  --color-chart-scale-03: var(--chart-scale-03);
+  --color-chart-scale-04: var(--chart-scale-04);
+  --color-chart-scale-05: var(--chart-scale-05);
+  --color-chart-segment-line: var(--chart-segment-line);
+  --color-chart-segment-background: var(--chart-segment-background);
+  --color-chart-marker-badge-foreground: var(--chart-marker-badge-foreground);
+  --color-chart-marker-badge-background: var(--chart-marker-badge-background);
+  --color-chart-indicator-secondary-color: var(--chart-indicator-secondary-color);
+  --color-chart-indicator-color: var(--chart-indicator-color);
+  --color-chart-scale-pattern-color: var(--chart-scale-pattern-color);
+  --chart-scale-05: var(--chart-scale-05);
+  --chart-scale-04: var(--chart-scale-04);
+  --chart-scale-03: var(--chart-scale-03);
+  --chart-scale-02: var(--chart-scale-02);
+  --color-chart-scale-01: var(--chart-scale-01);
+  --color-chart-scale-mix: var(--chart-scale-mix);
+  --color-chart-label: var(--chart-label);
+  --color-chart-marker-foreground: var(--chart-marker-foreground);
+  --color-chart-marker-border: var(--chart-marker-border);
+  --color-chart-marker-background: var(--chart-marker-background);
+  --chart-tooltip-muted: var(--chart-tooltip-muted);
+  --chart-tooltip-foreground: var(--chart-tooltip-foreground);
+  --chart-tooltip-background: var(--chart-tooltip-background);
+  --chart-brush-border: var(--chart-brush-border);
+  --color-chart-grid: var(--chart-grid);
+  --color-chart-crosshair: var(--chart-crosshair);
+  --chart-line-secondary: var(--chart-line-secondary);
+  --chart-line-primary: var(--chart-line-primary);
+  --color-chart-foreground-muted: var(--chart-foreground-muted);
+  --color-chart-foreground: var(--chart-foreground);
+  --color-chart-background: var(--chart-background);
+  --color-chart-negative: var(--chart-negative);
+  --color-chart-positive: var(--chart-positive);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+}
+
+
+/* bklit charts (src/components/charts): the app is dark only, so its chart tokens follow the app's colours, not shadcn's light defaults above. */
+:root {
+  --chart-1: var(--accent);
+  --chart-2: var(--warm);
+  --chart-3: var(--green);
+  --chart-4: #c58cff;
+  --chart-5: #ffd60a;
+  --chart-positive: var(--green);
+  --chart-negative: var(--warm);
+  --chart-background: transparent;
+  --chart-foreground: var(--label);
+  --chart-foreground-muted: var(--label-2);
+  --chart-crosshair: rgba(255, 255, 255, 0.35);
+  --chart-grid: rgba(255, 255, 255, 0.09);
+  --chart-brush-border: var(--chart-grid);
+  --chart-tooltip-background: rgba(28, 28, 32, 0.92);
+  --chart-tooltip-foreground: var(--label);
+  --chart-tooltip-muted: var(--label-2);
+  --chart-marker-background: rgba(40, 40, 46, 1);
+  --chart-marker-border: rgba(255, 255, 255, 0.2);
+  --chart-marker-foreground: var(--label);
+  --chart-label: var(--label-2);
+  --chart-scale-mix: rgba(30, 30, 34, 1);
+  --chart-scale-01: rgba(255, 255, 255, 0.08);
+  --chart-scale-pattern-color: rgba(10, 10, 12, 1);
+  --chart-indicator-color: #fff;
+  --chart-indicator-secondary-color: rgba(10, 10, 12, 1);
+  --chart-marker-badge-background: #fff;
+  --chart-marker-badge-foreground: #111;
+  --chart-segment-background: rgba(255, 255, 255, 0.06);
+  --chart-segment-line: rgba(255, 255, 255, 0.25);
 }

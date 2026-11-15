@@ -2,11 +2,13 @@
 
 // The answer, drawn as a stack of small cards. The model writes markdown with
 // ```viz blocks (one JSON object each, kinds listed in prompts.ts); this file
-// turns them into a verdict, stat tiles, charts, bars, meters, a side-by-side,
+// turns them into a verdict, stat tiles, charts, free-form plots (plot.tsx),
+// bars, meters, a side-by-side,
 // a timeline, folded fine print and tappable follow-ups.
 
 import type { CSSProperties, ReactNode } from "react";
 import { TrendChart, type ChartSpec } from "./parts";
+import { Plot } from "./plot";
 
 type Tone = "bad" | "good" | "mixed" | "neutral";
 type J = Record<string, unknown>;
@@ -148,6 +150,8 @@ function Viz({ spec, charts, onAsk }: { spec: J; charts: Map<string, ChartSpec>;
       return <Charts spec={spec} charts={charts} />;
     case "bars":
       return <Bars spec={spec} />;
+    case "plot":
+      return <Plot spec={spec} charts={charts} />;
     case "meter":
       return <Meter spec={spec} />;
     case "versus":
