@@ -165,7 +165,7 @@ docs/HANDOFF.md           Full technical notes
 | Who | Built |
 |---|---|
 | **Atharv Rastogi** | Frontend, globe, trend report, AI detective, hand control |
-| **Medhangshi Das** | Backend APIs, voice assistant (Whisper + Piper) |
+| **Medhangshi Das (Leader)** | Backend APIs, voice assistant (Whisper + Piper) |
 
 Full technical notes are in [`docs/HANDOFF.md`](docs/HANDOFF.md).
 
