@@ -34,7 +34,7 @@ https://github.com/user-attachments/assets/c1826852-191a-497b-8815-2b34b5a88944
 - 🔲 **Grid scans:** tests every ~0.5° cell over a region and paints a live heat map on the globe of where things are changing. Hover a square for its number.
 - 💧 **Groundwater anywhere:** GRACE/GRACE-FO water storage, clipped to the real border, in mm/decade and km³ lost per year.
 - 🔗 **What else changes when…?** Correlations between measures with the seasonal cycle and trends removed, a lag search and an autocorrelation correction.
-- 🎙️ **Voice:** speech-to-text with ElevenLabs Scribe v2 (via the Vercel AI Gateway) and spoken answers (Piper, or the browser voice). Works with a Bluetooth headset button.
+- 🎙️ **Voice:** speech-to-text with ElevenLabs Scribe v2 (via the Vercel AI Gateway) and spoken answers (Piper, or the browser voice). Tap the mic or hold Space to talk.
 - ✋ **Hand control:** steer the globe with your hand through the webcam (MediaPipe, runs in the browser):
   - open hand turns the globe;
   - a pinch zooms;
@@ -157,7 +157,7 @@ src/
     ├── coupling.ts       Correlation analysis
     ├── live.ts           Any place on Earth via NASA POWER
     ├── agent/            LangGraph detective: tools, NASA POWER, GRACE, GIBS decoding, number check
-    └── voice/            Mic capture, headset button, speech playback
+    └── voice/            Mic capture, speech playback
 public/trend_detective_data/   113 NASA CSVs + GRACE grid
 voice/                    Optional Piper voice service (spoken answers)
 scripts/                  Data preparation (GRACE → grid) and setup

@@ -9,7 +9,6 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type
 import { LAYER_INFO } from "@/lib/layers";
 import type { CheckData, PlanData, View, ViewChange } from "@/lib/agent/view";
 import { probeOf, type Probe } from "@/lib/probe";
-import { HeadsetButton } from "@/lib/voice/headset";
 import { Mic, transcribe } from "@/lib/voice/mic";
 import { speak, stopSpeaking, unlockSpeech } from "@/lib/voice/speak";
 import { Answer, pieces } from "./blocks";
@@ -242,36 +241,16 @@ export function Detective({ open, view, onShow, onProbe, onActivity, onOpen, onC
 
   useEffect(() => () => mic.current?.close(), []);
 
-  // Headset button (CMF Neckband Pro, AirPods, any Bluetooth headset): press to talk, press
-  // again to send; a press during an answer stops it and listens. It arms on the first click or
-  // key on the page (autoplay rules), then works even when the browser is not in front.
-  const press = useRef(() => {});
+  // Browsers start audio only after a gesture: unlock speech on the first click or key.
   useEffect(() => {
-    press.current = () => {
-      if (!take.current && busy) void stop();
-      void listen(true);
-    };
-  });
-  const headset = useRef<HeadsetButton | null>(null);
-  useEffect(() => {
-    const h = (headset.current = new HeadsetButton());
-    h.onPress = () => press.current();
-    const arm = () => {
-      unlockSpeech();
-      void h.arm();
-    };
-    const key = (e: globalThis.KeyboardEvent) => {
-      if (!h.key(e)) arm();
-    };
-    window.addEventListener("pointerdown", arm);
-    window.addEventListener("keydown", key);
+    const unlock = () => unlockSpeech();
+    window.addEventListener("pointerdown", unlock, { once: true });
+    window.addEventListener("keydown", unlock, { once: true });
     return () => {
-      window.removeEventListener("pointerdown", arm);
-      window.removeEventListener("keydown", key);
-      h.disarm();
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
     };
   }, []);
-  useEffect(() => headset.current?.setMicActive(voice === "listen"), [voice]);
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -404,7 +383,7 @@ export function Detective({ open, view, onShow, onProbe, onActivity, onOpen, onC
           disabled={voice === "hear"}
           onClick={() => void listen(false)}
           aria-label={voice === "listen" ? "Stop listening" : "Speak"}
-          title={voice === "listen" ? "Stop listening" : "Speak (or hold Space, or press your headset button)"}
+          title={voice === "listen" ? "Stop listening" : "Speak (or hold Space)"}
         >
           <svg viewBox="0 0 16 16" aria-hidden>
             <rect x="5.75" y="1.75" width="4.5" height="8" rx="2.25" />

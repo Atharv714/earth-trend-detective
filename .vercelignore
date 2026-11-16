@@ -1,11 +1,12 @@
-# Not needed to build or run the site on Vercel
-node_modules
-.next
-.env*
-!.env.example
-voice
-data-raw
-public/cesium
-public/mediapipe/wasm
+# Not needed to build or run the site on Vercel.
+# Leading slash = only at the repo root (src/lib/voice and src/app/api/voice must stay).
+/node_modules
+/.next
+/.env*
+!/.env.example
+/voice
+/data-raw
+/public/cesium
+/public/mediapipe/wasm
 *.tsbuildinfo
-.claude
+/.claude
