@@ -4,8 +4,8 @@ import dynamic from "next/dynamic";
 import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { REGIONS, sourceFor, type Layer, type Region } from "@/lib/regions";
 import { findPlace } from "@/lib/live";
-import { CASES, type Case } from "@/lib/cases";
-import { annualize, loadMonthly, seasonsFor, trend } from "@/lib/series";
+import type { Case } from "@/lib/cases";
+import { annualize, loadMonthly, trend } from "@/lib/series";
 import { LAYERS, LAYER_INFO, trendColor } from "@/lib/layers";
 import { DEFAULT_MAP, MAP_LAYERS, describeDate, layerDate, mapLayer, type MapLayer } from "@/lib/gibs";
 import { Panel } from "./shell/Panel";
@@ -13,7 +13,6 @@ import { Report, satYears, type Overview, type Sat } from "./report/Report";
 import type { Compare } from "./globe/CesiumGlobe";
 import { Detective, type Activity } from "./chat/Detective";
 import type { View, ViewChange } from "@/lib/agent/view";
-import type { UiPatch } from "@/lib/router/types";
 import type { Probe } from "@/lib/probe";
 
 const Globe = dynamic(() => import("./globe/CesiumGlobe"), {
@@ -219,88 +218,6 @@ export default function Workspace({ searchParams }: { searchParams: Promise<SP> 
     setResetToken((n) => n + 1);
   }, [open, probeKey]);
 
-  /**
-   * Change the screen as the router asked (src/lib/router), keeping whatever it
-   * didn't mention. Says in a few words what it did, and returns the new view so
-   * a question asked in the same breath is answered about it.
-   */
-  const apply = useCallback(
-    async (p: UiPatch): Promise<{ said: string; view: View; failed?: boolean }> => {
-      if (p.chat !== undefined) setChatOpen(p.chat);
-      if (p.home) {
-        reset();
-        return { said: "Back to the whole Earth.", view: { place: null, layer, season: null, range: null } };
-      }
-      const notes: string[] = [];
-      let r = selected;
-      let nextLayer = layer;
-      let nextSeason = season;
-      let nextRange = range;
-
-      // A story, unless a place was named too: then the named place and question win.
-      const story = !p.place && p.story ? CASES.find((c) => c.id === p.story) : undefined;
-      if (story) {
-        openCase(story);
-        r = REGIONS.find((x) => x.id === story.place) ?? null;
-        nextLayer = story.layer;
-        nextSeason = story.season ?? null;
-        nextRange = null;
-      }
-
-      if (p.place) {
-        try {
-          const next = "id" in p.place ? REGIONS.find((x) => x.id === (p.place as { id: string }).id) : await findPlace(p.place.name);
-          if (next && next.id !== r?.id) {
-            if (next.group === "Searched") setFound((f) => [next, ...f.filter((x) => x.id !== next.id)]);
-            open(next.id, [next]);
-            nextSeason = null;
-            nextRange = null;
-          }
-          if (next) r = next;
-        } catch (e) {
-          return { said: e instanceof Error ? e.message : "Could not find that place.", view, failed: true };
-        }
-      }
-
-      if (p.layer) {
-        if (r && !sourceFor(r, p.layer)) notes.push(`${r.name} has no record for “${LAYER_INFO[p.layer].tab}”`);
-        else nextLayer = p.layer;
-      }
-      // The place may not have the question on screen: open the first one it has.
-      if (r && !sourceFor(r, nextLayer)) nextLayer = LAYERS.find((l) => sourceFor(r, l)) ?? nextLayer;
-      setLayer(nextLayer);
-
-      if (p.season !== undefined) {
-        if (!r) notes.push("open a place to pick a season");
-        else if (p.season === null) nextSeason = null;
-        else nextSeason = closestSeason(r, p.season);
-        setSeason(nextSeason);
-      }
-      if (p.range !== undefined) {
-        if (!r) notes.push("open a place to pick years");
-        else {
-          // A trend needs about ten years: widen a shorter stretch back from its end.
-          nextRange = p.range && p.range[1] - p.range[0] < 9 ? [p.range[1] - 9, p.range[1]] : p.range;
-          setRange(nextRange);
-        }
-      }
-      if (p.sat !== undefined) setSat((s) => ({ ...s, on: p.sat! }));
-
-      const seasonLabel = r && nextSeason ? seasonsFor(r).find((x) => x.id === nextSeason)?.label : null;
-      const parts = [
-        story?.title ?? r?.name ?? "The whole Earth",
-        LAYER_INFO[nextLayer].tab,
-        seasonLabel,
-        nextRange?.join("–"),
-        p.sat === undefined ? null : p.sat ? "satellite maps on" : "satellite maps off",
-        p.chat === undefined ? null : p.chat ? "detective open" : "detective closed",
-      ].filter(Boolean);
-      const said = `${parts.join(" · ")}.${notes.length ? ` (${notes.join("; ")}.)` : ""}`;
-      return { said, view: { place: r?.id ?? null, placeName: r?.name, layer: nextLayer, season: nextSeason, range: nextRange } };
-    },
-    [layer, season, range, selected, view, open, openCase, reset],
-  );
-
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const typing = (e.target as HTMLElement)?.closest("input, textarea");
@@ -406,7 +323,7 @@ export default function Workspace({ searchParams }: { searchParams: Promise<SP> 
         </span>
       </div>
 
-      <Detective open={chatOpen} view={view} onShow={show} onProbe={setProbe} onApply={apply}
+      <Detective open={chatOpen} view={view} onShow={show} onProbe={setProbe}
         onActivity={setActivity}
         onOpen={openChat}
         onClose={() => setChatOpen(false)}
@@ -425,22 +342,6 @@ export default function Workspace({ searchParams }: { searchParams: Promise<SP> 
       <p className="credit">Imagery: NASA GIBS, Blue Marble</p>
     </main>
   );
-}
-
-/** Router seasons are month ranges; pick this place's season that shares the most months. */
-const SEASON_MONTHS: Record<string, number[]> = {
-  djf: [12, 1, 2], winter: [12, 1, 2], mam: [3, 4, 5], summer: [3, 4, 5], jja: [6, 7, 8], son: [9, 10, 11], monsoon: [6, 7, 8, 9], post: [10, 11],
-};
-function closestSeason(r: Region, id: string): string | null {
-  const want = SEASON_MONTHS[id];
-  if (!want) return null;
-  let best: string | null = null;
-  let most = 0;
-  for (const s of seasonsFor(r)) {
-    const n = s.months.filter((m) => want.includes(m)).length;
-    if (n > most) [best, most] = [s.id, n];
-  }
-  return best;
 }
 
 function Legend({ layer }: { layer: Layer }) {

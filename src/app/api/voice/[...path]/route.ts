@@ -1,9 +1,10 @@
 import type { NextRequest } from "next/server";
 
-// Same-origin proxy to the local voice service (speech-to-text and Piper text-to-speech) (voice/server.py).
+// Same-origin proxy to the optional local Piper voice (voice/server.py) that speaks answers.
+// Speech-to-text is not here: it is ElevenLabs Scribe (../stt/route.ts).
 // Keeps the browser on one origin and turns "service not running" into a clear JSON error.
 const VOICE_URL = process.env.VOICE_URL ?? "http://127.0.0.1:8765";
-const ALLOWED = /^(health|stt|tts)$/;
+const ALLOWED = /^(health|tts)$/;
 
 async function forward(req: NextRequest, ctx: { params: Promise<{ path: string[] }> }) {
   const { path } = await ctx.params;
@@ -26,7 +27,7 @@ async function forward(req: NextRequest, ctx: { params: Promise<{ path: string[]
     return new Response(res.body, { status: res.status, headers });
   } catch {
     return Response.json(
-      { error: "The voice service is not running. Start it with: npm run voice" },
+      { error: "The Piper voice is not running (npm run voice); the browser voice speaks instead." },
       { status: 503 },
     );
   }

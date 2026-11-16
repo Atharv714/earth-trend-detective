@@ -1,6 +1,7 @@
-// Starts the local speech-to-text service (voice/server.py), creating its virtualenv on first run.
+// Starts the optional local Piper voice (voice/server.py), creating its virtualenv on first run.
+// Speech-to-text needs none of this: it is ElevenLabs Scribe v2 through the AI Gateway.
 //   npm run voice            start (installs on first run)
-//   npm run voice -- setup   install / update packages and download the Whisper models for offline use
+//   npm run voice -- setup   install / update packages and download the Piper voice for offline use
 import { spawnSync, spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";

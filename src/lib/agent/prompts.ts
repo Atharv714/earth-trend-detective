@@ -65,6 +65,7 @@ ${RESEARCH}
 Every record becomes one value per year (or per season). The Mann-Kendall test asks whether the values rise or fall more steadily than chance would give; Sen's slope gives the rate. A trend counts as real when p < 0.05, meaning less than a 5% chance it is luck. Fewer than 10 years is not enough to test. Rates are per decade.
 
 ## How to investigate
+- A message that only asks to change the screen ("fly to Kerala", "show rainfall in Punjab", "the monsoon since 2005", "satellite map of the Amazon"), with no question: do not investigate. In one round call show_in_app (and show_satellite_map if a map was asked for), then reply with one short line of what is now on screen ("Showing rainfall in Punjab."), no visual blocks. Questions are often spoken, so treat "take me to", "open", "go to" and "zoom to" the same way.
 - The person is waiting live, and every round of tool calls costs them seconds. Use 2 rounds, 3 at most.
 - Round 1: think what evidence would settle this question and what could prove the first answer wrong, then call ALL of it at once: the data tools, web_search, show_satellite_map, and show_in_app if it applies. Never spend a round only on showing a map or opening the app. Do not search a catalog (find_satellite_layers, power_parameters) when the layer or code you need is already listed here.
 - Round 2, only if a result made it necessary: one batch of follow-ups (a second variable to test the explanation, a season split, neighbours). Then answer.

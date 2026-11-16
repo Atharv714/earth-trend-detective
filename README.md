@@ -34,7 +34,7 @@ https://github.com/user-attachments/assets/c1826852-191a-497b-8815-2b34b5a88944
 - 🔲 **Grid scans:** tests every ~0.5° cell over a region and paints a live heat map on the globe of where things are changing. Hover a square for its number.
 - 💧 **Groundwater anywhere:** GRACE/GRACE-FO water storage, clipped to the real border, in mm/decade and km³ lost per year.
 - 🔗 **What else changes when…?** Correlations between measures with the seasonal cycle and trends removed, a lag search and an autocorrelation correction.
-- 🎙️ **Voice:** offline speech-to-text (Whisper) and spoken answers (Piper). Works with a Bluetooth headset button.
+- 🎙️ **Voice:** speech-to-text with ElevenLabs Scribe v2 (via the Vercel AI Gateway) and spoken answers (Piper, or the browser voice). Works with a Bluetooth headset button.
 - ✋ **Hand control:** steer the globe with your hand through the webcam (MediaPipe, runs in the browser):
   - open hand turns the globe;
   - a pinch zooms;
@@ -119,18 +119,17 @@ npm run build && npm start   # http://localhost:3000
 What needs which key:
 - **No keys needed:** the globe, the reports, the trend tests, the stories and hand control. They run from the files in `public/trend_detective_data/`, offline.
 - **Internet only:** live place search (NASA POWER).
-- **A key in `.env`:** the AI detective.
+- **A key in `.env`:** the AI detective, and voice input.
 
 | Variable | For |
 |---|---|
-| `AI_GATEWAY_API_KEY` | The AI detective (Vercel AI Gateway) |
+| `AI_GATEWAY_API_KEY` | The AI detective and voice input (ElevenLabs Scribe v2), both via the Vercel AI Gateway |
 | `PARALLEL_WEB_SEARCH_KEY` | Web search inside the detective's answers (optional) |
-| `VOICE_URL` | Address of the voice service (optional; defaults to the local one) |
+| `VOICE_URL` | Address of the Piper voice service (optional; defaults to the local one) |
 
-**Voice (optional):**
-- Run `npm run voice` next to the app.
-- The first run sets up a Python environment and downloads Whisper and Piper. After that it works offline.
-- On a Mac, install `whisper-cpp` first: `brew install whisper-cpp`.
+**Spoken answers (optional):**
+- Run `npm run voice` next to the app for the Piper voice. The first run sets up a Python environment and downloads the voice.
+- Without it, the browser's own voice reads the answers.
 
 **Shortcuts:**
 
@@ -147,7 +146,7 @@ What needs which key:
 
 ```
 src/
-├── app/                  Next.js app router + API routes (chat, router, voice proxy)
+├── app/                  Next.js app router + API routes (chat, speech-to-text, voice proxy)
 ├── components/
 │   ├── globe/            Cesium globe, heat maps, satellite splits, hand control
 │   ├── report/           Trend report: stripes, charts, seasons, correlations
@@ -158,10 +157,9 @@ src/
     ├── coupling.ts       Correlation analysis
     ├── live.ts           Any place on Earth via NASA POWER
     ├── agent/            LangGraph detective: tools, NASA POWER, GRACE, GIBS decoding, number check
-    ├── router/           Fast voice-command router
     └── voice/            Mic capture, headset button, speech playback
 public/trend_detective_data/   113 NASA CSVs + GRACE grid
-voice/                    Python voice service (Whisper + Piper)
+voice/                    Optional Piper voice service (spoken answers)
 scripts/                  Data preparation (GRACE → grid) and setup
 docs/HANDOFF.md           Full technical notes
 ```
@@ -171,7 +169,7 @@ docs/HANDOFF.md           Full technical notes
 | Who | Built |
 |---|---|
 | **Atharv Rastogi** | Frontend, globe, trend report, AI detective, hand control |
-| **Medhangshi Das (Leader)** | Backend APIs, voice assistant (Whisper + Piper) |
+| **Medhangshi Das (Leader)** | Backend APIs, voice assistant (ElevenLabs Scribe + Piper) |
 
 Full technical notes are in [`docs/HANDOFF.md`](docs/HANDOFF.md).
 

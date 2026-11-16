@@ -1,6 +1,6 @@
-// Microphone capture with end-of-speech detection, and Whisper transcription
-// through the local service (voice/server.py). Taken from the voice branch (Medhu), speech-to-text only.
-// Audio goes to the service as raw 16 kHz float32 PCM: no encoding or decoding on either side.
+// Microphone capture with end-of-speech detection, and transcription with
+// ElevenLabs Scribe v2 through the Vercel AI Gateway (src/app/api/voice/stt/route.ts).
+// Audio goes to the server as raw 16 kHz float32 PCM; it sends Scribe a 16-bit WAV.
 
 export interface SttResult {
   text: string;

@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+/* Not markup: keep Tailwind's class scan out of the voice models and the copied runtimes. */
+@source not "../../voice";
+@source not "../../public";
+
 @custom-variant dark (&:is(.dark *));
 
 /* Tokens. One dark material over real space, one accent, quiet type. */
@@ -3091,7 +3095,7 @@ button.bar-row:hover {
 
 /* ------------------------------------------------------------------ */
 /* Working: a green light that runs along the top edge, wall to wall,  */
-/* while the router or the detective is busy.                          */
+/* while the detective is busy.                                        */
 
 .busy-bar {
   position: fixed;

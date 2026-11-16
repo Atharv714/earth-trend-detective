@@ -9,8 +9,6 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type
 import { LAYER_INFO } from "@/lib/layers";
 import type { CheckData, PlanData, View, ViewChange } from "@/lib/agent/view";
 import { probeOf, type Probe } from "@/lib/probe";
-import { routeText } from "@/lib/router/client";
-import { isEmpty, type UiPatch } from "@/lib/router/types";
 import { HeadsetButton } from "@/lib/voice/headset";
 import { Mic, transcribe } from "@/lib/voice/mic";
 import { speak, stopSpeaking, unlockSpeech } from "@/lib/voice/speak";
@@ -26,8 +24,6 @@ interface Props {
   onShow: (v: ViewChange) => void;
   /** What the detective is looking at, for the globe. */
   onProbe: (p: Probe | null) => void;
-  /** Change the screen as the router asked; says what it did and returns the new view. */
-  onApply: (p: UiPatch) => Promise<{ said: string; view: View; failed?: boolean }>;
   /** Listening, working or idle, for the bar along the top. */
   onActivity: (a: Activity) => void;
   onOpen: () => void;
@@ -66,12 +62,10 @@ function suggestions(v: View): string[] {
   ];
 }
 
-export function Detective({ open, view, onShow, onProbe, onApply, onActivity, onOpen, onClose }: Props) {
+export function Detective({ open, view, onShow, onProbe, onActivity, onOpen, onClose }: Props) {
   const { messages, sendMessage, status, stop, error, regenerate, clearError } = useChat({ transport: TRANSPORT });
-  /** The message being routed (screen changes stay out of the chat; only the detective's turns go in). */
-  const [routing, setRouting] = useState<string | null>(null);
-  const busy = status === "submitted" || status === "streaming" || routing !== null;
-  /** Voice: recording, or waiting for Whisper. */
+  const busy = status === "submitted" || status === "streaming";
+  /** Voice: recording, or waiting for the transcript (Scribe v2). */
   const [voice, setVoice] = useState<"idle" | "listen" | "hear">("idle");
   const [voiceError, setVoiceError] = useState<string | null>(null);
 
@@ -178,43 +172,21 @@ export function Detective({ open, view, onShow, onProbe, onApply, onActivity, on
     if (status === "error") speakReply.current = false;
   }, [status, messages]);
 
-  // Typed questions go straight to the detective. Only speech goes through the
-  // router, which can turn "fly to Kerala" into a screen change with no chat turn.
-  const send = async (q: string, spoken = false) => {
+  // Typed and spoken messages both go to the detective, which changes the screen
+  // itself (its show_in_app tool) and answers.
+  const send = (q: string, spoken = false) => {
     const t = q.trim();
     if (!t || busy) return;
     if (error) clearError();
     speakReply.current = spoken;
     pinned.current = true;
     setText("");
-    if (spoken) setRouting(t);
-    try {
-      // The router decides in under a second: change the screen, ask the
-      // detective, or both. Anything it is unsure of goes to the detective.
-      const r = spoken ? await routeText(t, view) : null;
-      // A screen change happens on the globe and stays out of the chat. If it
-      // can't be done (a place that can't be found), the detective takes it.
-      if (r && r.route === "ui" && !isEmpty(r.patch)) {
-        const done = await onApply(r.patch);
-        if (!done.failed) {
-          speakReply.current = false;
-          return void speak(done.said);
-        }
-      }
-      let now = view;
-      if (r && r.route === "both" && !isEmpty(r.patch)) {
-        const done = await onApply(r.patch);
-        if (!done.failed) now = done.view;
-      }
-      if (!open) onOpen();
-      // What the app shows goes with every question, so "here" means something.
-      sendMessage({ text: t }, { body: { view: now } });
-    } finally {
-      setRouting(null);
-    }
+    if (!open) onOpen();
+    // What the app shows goes with every question, so "here" means something.
+    sendMessage({ text: t }, { body: { view } });
   };
 
-  // Voice (Whisper on this machine, voice/server.py). Tap the mic and it stops when
+  // Voice (ElevenLabs Scribe v2 via the AI Gateway, src/app/api/voice/stt). Tap the mic and it stops when
   // you stop talking; or hold Space anywhere outside a text box and let go to send.
   const sendRef = useRef(send);
   useEffect(() => {
@@ -239,7 +211,7 @@ export function Detective({ open, view, onShow, onProbe, onApply, onActivity, on
       setVoice("hear");
       const { text } = await transcribe(pcm);
       setVoice("idle");
-      if (text) await sendRef.current(text, true);
+      if (text) sendRef.current(text, true);
     } catch (e) {
       take.current = null;
       setLevel(0);
@@ -440,7 +412,7 @@ export function Detective({ open, view, onShow, onProbe, onApply, onActivity, on
           </svg>
         </button>
         {busy ? (
-          <button type="button" className="chat-send" onClick={() => stop()} disabled={routing !== null} aria-label="Stop" title="Stop">
+          <button type="button" className="chat-send" onClick={() => stop()} aria-label="Stop" title="Stop">
             <svg viewBox="0 0 16 16" aria-hidden>
               <rect x="4.5" y="4.5" width="7" height="7" rx="1.5" />
             </svg>

@@ -1,0 +1,11 @@
+# Not needed to build or run the site on Vercel
+node_modules
+.next
+.env*
+!.env.example
+voice
+data-raw
+public/cesium
+public/mediapipe/wasm
+*.tsbuildinfo
+.claude
